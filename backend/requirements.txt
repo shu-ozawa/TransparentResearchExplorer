@@ -3,3 +3,9 @@ fastapi
 
 # Uvicorn (ASGI server)
 uvicorn[standard]
+
+# SQLAlchemy (ORM)
+sqlalchemy
+
+# SQLite driver (async for FastAPI)
+aiosqlite
