@@ -4,6 +4,9 @@ fastapi
 # Uvicorn (ASGI server)
 uvicorn[standard]
 
+# Gemini API
+google-generativeai
+
 # SQLAlchemy (ORM)
 sqlalchemy
 

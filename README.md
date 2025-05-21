@@ -19,6 +19,16 @@ Transparent Research Explorer (TRE) は、arXiv から論文を検索し、検�
 - **可視化ライブラリ:** D3.js（クエリツリー可視化用）
 - **状態管理:** React Context API（小規模なため）
 
+## 2.1. Core Components
+
+### Gemini API Integration
+-   **Location**: `backend/app/clients/gemini_client.py`
+-   **Purpose**: This client is responsible for all interactions with the Google Gemini API. It handles tasks such as text generation, summarization, and potentially other generative AI functionalities required by the application.
+-   **Configuration**:
+    -   Requires the `GEMINI_API_KEY` environment variable to be set with a valid API key for authentication.
+    -   The necessary library `google-generativeai` has been added to `backend/requirements.txt`.
+-   **Error Handling**: The client includes error handling for API communication issues and other unexpected problems, typically returning empty results or raising exceptions as appropriate.
+
 ## 3. ディレクトリ構造
 
 ```
