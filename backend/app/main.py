@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from backend.core.database import engine, Base, create_db_and_tables # Updated import
+from backend.api.endpoints import arxiv as arxiv_router # Import the arxiv router
 # If Paper model is needed in main.py for some reason, import it like:
 # from backend.models.paper import Paper 
 
@@ -7,7 +8,15 @@ from backend.core.database import engine, Base, create_db_and_tables # Updated i
 # This is a simple way for prototypes. For production, you might use Alembic migrations.
 create_db_and_tables() 
 
-app = FastAPI()
+app = FastAPI(
+    title="Transparent Research Explorer API",
+    description="API for searching arXiv and processing research papers.",
+    version="0.1.0"
+)
+
+# Include routers
+app.include_router(arxiv_router.router, prefix="/api/arxiv", tags=["arXiv"])
+
 
 # Example of how to ensure tables are created using an event handler
 # This is often preferred over calling create_db_and_tables() directly at the module level,

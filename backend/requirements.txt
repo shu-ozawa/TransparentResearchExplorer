@@ -9,3 +9,17 @@ sqlalchemy
 
 # SQLite driver (async for FastAPI)
 aiosqlite
+
+# arXiv API client
+arxiv
+
+# HTTP client for TestClient
+httpx
+
+# Retrying library
+tenacity
+
+# Testing
+pytest
+pytest-asyncio
+pytest-mock

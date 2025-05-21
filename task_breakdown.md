@@ -5,16 +5,16 @@
 
 #### バックエンド (BE) - Python + FastAPI
 
-- [ ] **PR1 (BE): FastAPI プロジェクト初期設定**
+- [x] **PR1 (BE): FastAPI プロジェクト初期設定**
   - 内容: `main.py` 作成、基本ディレクトリ構造設定 (`app`, `core`, `models`, `schemas`, `api` 等)、`.gitignore` 設定、`requirements.txt` (fastapi, uvicorn) 作成。
   - 担当例: BE 担当 A
 - [ ] **PR2 (BE): arXiv API 連携モジュール (基本)**
   - 内容: arXiv API ラッパー/クライアントクラス作成。キーワードで論文メタデータ取得機能。エラーハンドリング。
   - 担当例: BE 担当 A
-- [ ] **PR3 (BE): Gemini API 連携モジュール (基本)**
+- [x] **PR3 (BE): Gemini API 連携モジュール (基本)**
   - 内容: Gemini API クライアントクラス作成。簡単なテキスト生成/処理リクエスト機能。API キー管理。
   - 担当例: BE 担当 B
-- [ ] **PR4 (BE): SQLite データベース設定と基本モデル**
+- [x] **PR4 (BE): SQLite データベース設定と基本モデル**
   - 内容: SQLAlchemy 等を用いた DB 接続設定。論文情報キャッシュ用の基本テーブルモデル定義。
   - 担当例: BE 担当 B
 
