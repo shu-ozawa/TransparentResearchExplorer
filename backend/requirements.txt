@@ -1,0 +1,5 @@
+# FastAPI
+fastapi
+
+# Uvicorn (ASGI server)
+uvicorn[standard]
