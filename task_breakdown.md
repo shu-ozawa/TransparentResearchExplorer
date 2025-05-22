@@ -20,7 +20,7 @@
 
 #### フロントエンド (FE) - React.js
 
-- [ ] **PR1 (FE): React プロジェクト初期設定**
+- [x] **PR1 (FE): React プロジェクト初期設定**
   - 内容: `create-react-app` または `vite` でプロジェクト作成。基本ディレクトリ構造設定 (`src/components`, `src/pages`, `src/services`, `src/contexts` 等)。UI ライブラリ (Material-UI or Chakra UI) 選定・導入。
   - 担当例: FE 担当 A
 - [ ] **PR2 (FE): 基本レイアウトコンポーネント作成**
