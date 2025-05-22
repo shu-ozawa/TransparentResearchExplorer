@@ -42,7 +42,7 @@
 - [x] **PR5 (BE): クエリ生成 API エンドポイント**
   - 内容: 初期キーワードから Gemini API で関連クエリリストを生成する API (`/api/queries/generate`)。
   - 担当例: BE 担当 A (依存: PR3(BE))
-- [ ] **PR6 (BE): 論文検索 API エンドポイント**
+- [x] **PR6 (BE): 論文検索 API エンドポイント**
   - 内容: クエリリストから arXiv API で論文検索・統合し基本情報を返す API (`/api/papers/search`)。検索結果キャッシュ組込。
   - 担当例: BE 担当 B (依存: PR2(BE), PR4(BE))
 - [ ] **PR7 (BE): 論文スコアリング API エンドポイント**
