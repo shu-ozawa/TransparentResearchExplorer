@@ -3,6 +3,12 @@ from pydantic import BaseModel
 import logging
 
 from backend.app.clients.gemini_client import GeminiClient
+from backend.api.arxiv_client import ArxivAPIClient, get_arxiv_client
+from backend.models.paper import Paper
+from backend.core.database import get_db
+from sqlalchemy.orm import Session
+from typing import List
+from datetime import datetime
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -68,3 +74,74 @@ async def generate_related_queries(
     except Exception as e:
         logger.error(f"Error generating related queries for '{request.initial_keywords}': {e}")
         raise HTTPException(status_code=500, detail=f"Failed to generate related queries: {str(e)}")
+
+class SearchQuery(BaseModel):
+    query: str
+    max_results: int = 10
+
+class PaperSearchResponse(BaseModel):
+    title: str
+    authors: List[str]
+    summary: str
+    published_date: datetime
+    url: str
+
+@router.post("/search", response_model=List[PaperSearchResponse], summary="Search arXiv papers by query list and cache results")
+async def search_papers(
+    queries: List[SearchQuery],
+    db: Session = Depends(get_db),
+    client: ArxivAPIClient = Depends(get_arxiv_client)
+):
+    """
+    Search for papers on arXiv using a list of queries, integrate the results,
+    cache the results in the database, and return basic information.
+    """
+    all_papers = []
+
+    for search_query in queries:
+        # Get cached papers
+        result_ids = []
+        results = await client.search_papers(keyword=search_query.query, max_results=search_query.max_results)
+        for result in results:
+            result_ids.append(result.entry_id)
+
+        cached_papers = db.query(Paper).filter(Paper.arxiv_id.in_(result_ids)).all()
+
+        if not cached_papers:
+            try:
+                # If no cache, save the new results
+                for result in results:
+                    authors = [author.name for author in result.authors]
+                    paper = Paper(
+                        arxiv_id=result.entry_id,
+                        title=result.title,
+                        authors=authors,
+                        abstract=result.summary,
+                        published_date=result.published,
+                        url=result.pdf_url
+                    )
+                    db.add(paper)
+                    all_papers.append(PaperSearchResponse(
+                        title=paper.title,
+                        authors=authors,
+                        summary=paper.abstract,
+                        published_date=paper.published_date,
+                        url=paper.url
+                    ))
+
+                db.commit()
+            except Exception as e:
+                logger.error(f"Error searching arXiv with query '{search_query.query}': {e}")
+                raise HTTPException(status_code=500, detail=f"Failed to search arXiv: {str(e)}")
+        else:
+            # If cache exists, use the cached papers
+            for paper in cached_papers:
+                all_papers.append(PaperSearchResponse(
+                    title=paper.title,
+                    authors=paper.authors,
+                    summary=paper.abstract,
+                    published_date=paper.published_date,
+                    url=paper.url
+                ))
+
+    return all_papers
