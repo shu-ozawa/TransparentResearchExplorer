@@ -1,12 +1,14 @@
 from fastapi import FastAPI
 from backend.core.database import engine, Base, create_db_and_tables # Updated import
-from backend.api.endpoints import arxiv as arxiv_router # Import the arxiv router
+from backend.api.endpoints import arxiv as arxiv_router  # Import the arxiv router
+from backend.api.endpoints import queries as queries_router  # Import the queries router
+
 # If Paper model is needed in main.py for some reason, import it like:
-# from backend.models.paper import Paper 
+# from backend.models.paper import Paper
 
 # Create database tables on startup
 # This is a simple way for prototypes. For production, you might use Alembic migrations.
-create_db_and_tables() 
+create_db_and_tables()
 
 app = FastAPI(
     title="Transparent Research Explorer API",
@@ -16,7 +18,7 @@ app = FastAPI(
 
 # Include routers
 app.include_router(arxiv_router.router, prefix="/api/arxiv", tags=["arXiv"])
-
+app.include_router(queries_router.router, prefix="/api/queries", tags=["Queries"])
 
 # Example of how to ensure tables are created using an event handler
 # This is often preferred over calling create_db_and_tables() directly at the module level,
@@ -24,7 +26,6 @@ app.include_router(arxiv_router.router, prefix="/api/arxiv", tags=["arXiv"])
 # @app.on_event("startup")
 # async def startup_event():
 #     create_db_and_tables()
-
 
 @app.get("/")
 async def root():
