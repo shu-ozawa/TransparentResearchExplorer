@@ -22,6 +22,21 @@ const apiService = {
 
     return response.json();
   },
+
+  fetchQueryTreeData: async () => {
+    const response = await fetch('/api/queries/tree', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch query tree data');
+    }
+
+    return response.json();
+  },
 };
 
 export default apiService;
