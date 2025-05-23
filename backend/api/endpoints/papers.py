@@ -4,6 +4,7 @@ import logging
 
 from backend.app.clients.gemini_client import GeminiClient
 from typing import List
+from backend.api.arxiv_client import ArxivClient
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -21,8 +22,39 @@ class RelevanceScoreResponse(BaseModel):
     score: float
     explanation: str
 
+# Pydantic model for search request
+class SearchRequest(BaseModel):
+    query: str
+
 def get_gemini_client():
     return GeminiClient()
+
+@router.post("/search", response_model=List[PaperInfo], summary="Search arXiv for papers matching the query")
+async def search_papers(
+    request: SearchRequest,
+    arxiv_client: ArxivClient = Depends(ArxivClient)
+):
+    """
+    Search arXiv for papers matching the query and return a list of paper metadata.
+    """
+    try:
+        results = await arxiv_client.search(query=request.query, max_results=20)
+
+        # Format the results as PaperInfo objects
+        paper_list = []
+        for result in results:
+            paper = PaperInfo(
+                title=result.title,
+                authors=result.authors,
+                abstract=result.summary or "",
+            )
+            paper_list.append(paper)
+
+        return paper_list
+
+    except Exception as e:
+        logger.error(f"Error searching papers: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to search papers: {str(e)}")
 
 @router.post("/score", response_model=RelevanceScoreResponse, summary="Generate relevance score and explanation for a paper-query pair")
 async def generate_relevance_score(
