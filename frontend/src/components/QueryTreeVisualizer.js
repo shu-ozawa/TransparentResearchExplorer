@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import * as d3 from 'd3';
 
-const QueryTreeVisualizer = ({ data }) => {
+const QueryTreeVisualizer = ({ data, onQuerySelect }) => {
   const svgRef = useRef();
 
   useEffect(() => {
@@ -48,17 +48,32 @@ const QueryTreeVisualizer = ({ data }) => {
       .enter()
       .append('g')
       .attr('class', 'node')
-      .attr('transform', d => `translate(${d.y},${d.x})`);
+      .attr('transform', d => `translate(${d.y},${d.x})`)
+      .on('click', (event, d) => {
+        if (d.data.name && onQuerySelect) {
+          onQuerySelect(d.data.name);
+        }
+      });
 
     node.append('circle')
       .attr('r', 5)
       .attr('fill', '#999');
 
-    node.append('text')
+    const text = node.append('text')
       .attr('dy', '.35em')
       .attr('x', d => d.children ? -10 : 10)
       .style('text-anchor', d => d.children ? 'end' : 'start')
+      .style('cursor', 'pointer')
+      .style('fill', '#007bff')
       .text(d => d.data.name);
+
+    // Add hover effect to text
+    text.on('mouseover', function() {
+      d3.select(this).style('font-weight', 'bold');
+    })
+    .on('mouseout', function() {
+      d3.select(this).style('font-weight', 'normal');
+    });
 
     // Add zoom capability
     const zoom = d3.zoom()
@@ -70,11 +85,12 @@ const QueryTreeVisualizer = ({ data }) => {
     d3.select(svgRef.current)
       .call(zoom)
       .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.8));
-  }, [data]);
+  }, [data, onQuerySelect]);
 
   return (
     <div>
       <h2>Query Tree Visualization</h2>
+      {onQuerySelect && <p>Click on a query node to search papers with that query</p>}
       <svg ref={svgRef}></svg>
     </div>
   );
@@ -87,6 +103,7 @@ QueryTreeVisualizer.propTypes = {
       name: PropTypes.string.isRequired,
     })),
   }),
+  onQuerySelect: PropTypes.func,
 };
 
 export default QueryTreeVisualizer;
