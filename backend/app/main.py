@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from backend.core.database import engine, Base, create_db_and_tables # Updated import
 from backend.api.endpoints import arxiv as arxiv_router  # Import the arxiv router
 from backend.api.endpoints import queries as queries_router  # Import the queries router
@@ -15,6 +16,15 @@ app = FastAPI(
     title="Transparent Research Explorer API",
     description="API for searching arXiv and processing research papers.",
     version="0.1.0"
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # フロントエンドのURL
+    allow_credentials=True,
+    allow_methods=["*"],  # すべてのHTTPメソッドを許可
+    allow_headers=["*"],  # すべてのヘッダーを許可
 )
 
 # Include routers

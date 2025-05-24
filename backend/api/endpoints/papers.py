@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 import logging
+import re
 
 from backend.app.clients.gemini_client import GeminiClient
 from typing import List
-from backend.api.arxiv_client import ArxivClient
+from backend.api.arxiv_client import ArxivAPIClient
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -32,20 +33,20 @@ def get_gemini_client():
 @router.post("/search", response_model=List[PaperInfo], summary="Search arXiv for papers matching the query")
 async def search_papers(
     request: SearchRequest,
-    arxiv_client: ArxivClient = Depends(ArxivClient)
+    arxiv_client: ArxivAPIClient = Depends(ArxivAPIClient)
 ):
     """
     Search arXiv for papers matching the query and return a list of paper metadata.
     """
     try:
-        results = await arxiv_client.search(query=request.query, max_results=20)
+        results = await arxiv_client.search_papers(keyword=request.query, max_results=20)
 
         # Format the results as PaperInfo objects
         paper_list = []
         for result in results:
             paper = PaperInfo(
                 title=result.title,
-                authors=result.authors,
+                authors=[author.name for author in result.authors],
                 abstract=result.summary or "",
             )
             paper_list.append(paper)
@@ -83,27 +84,39 @@ async def generate_relevance_score(
         score = None
         explanation = ""
 
-        if "score:" in response_text.lower():
-            # Try to extract a numeric score
-            import re
-            score_match = re.search(r"(\d+\.?\d*)", response_text)
-            if score_match:
-                try:
-                    score = float(score_match.group(1))
-                    if score < 0: score = 0
-                    if score > 1: score = 1
-                except ValueError:
-                    score = None
+        # Define relevance levels
+        relevance_levels = {
+            "highly relevant": 0.9,
+            "relevant": 0.7,
+            "somewhat relevant": 0.5,
+            "not very relevant": 0.3,
+            "not relevant": 0
+        }
 
-        # If we couldn't extract a numeric score, default to trying to find a relevance level
+        # Try to extract score from "Rating: X.X" format
+        rating_match = re.search(r"Rating:\s*(\d+\.?\d*)", response_text)
+        if rating_match:
+            try:
+                score = float(rating_match.group(1))
+                if score < 0: score = 0
+                if score > 1: score = 1
+            except ValueError:
+                score = None
+
+        # If no rating found, try other formats
         if not isinstance(score, float):
-            relevance_levels = {
-                "highly relevant": 0.9,
-                "relevant": 0.7,
-                "somewhat relevant": 0.5,
-                "not very relevant": 0.3,
-                "not relevant": 0
-            }
+            if "score:" in response_text.lower():
+                score_match = re.search(r"(\d+\.?\d*)", response_text)
+                if score_match:
+                    try:
+                        score = float(score_match.group(1))
+                        if score < 0: score = 0
+                        if score > 1: score = 1
+                    except ValueError:
+                        score = None
+
+        # If still no score, try relevance levels
+        if not isinstance(score, float):
             for level_text, value in relevance_levels.items():
                 if level_text in response_text.lower():
                     score = value
@@ -113,14 +126,13 @@ async def generate_relevance_score(
         if not isinstance(score, float):
             score = 0.0
 
-        # Extract explanation (any text that isn't part of the score)
+        # Extract explanation (any text that isn't part of the score/rating)
         explanation_parts = []
         lines = response_text.split("\n")
-        in_explanation = False
         for line in lines:
             lower_line = line.lower()
-            if "score:" in lower_line or any(level in lower_line for level in relevance_levels.keys()):
-                continue  # Skip lines that contain the score
+            if "rating:" in lower_line or "score:" in lower_line or any(level in lower_line for level in relevance_levels.keys()):
+                continue  # Skip lines that contain the score/rating
 
             # Skip numeric-only lines that might be standalone scores
             if re.match(r"^\d+\.?\d*$", line.strip()):

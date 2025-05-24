@@ -2,16 +2,19 @@ import os
 import sys
 import google.generativeai as genai
 from google.api_core import exceptions as google_exceptions
+from dotenv import load_dotenv
 
 class GeminiClient:
     def __init__(self):
+        # .envファイルを読み込む
+        load_dotenv()
         api_key = os.getenv("GEMINI_API_KEY")
         if api_key is None:
-            raise ValueError("GEMINI_API_KEY environment variable not set.")
+            raise ValueError("GEMINI_API_KEY environment variable not set. Please check your .env file.")
         genai.configure(api_key=api_key)
 
     def generate_text(self, prompt: str) -> str:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
         try:
             response = model.generate_content(prompt)
             # Ensure response.text is accessible and not None
@@ -29,3 +32,11 @@ class GeminiClient:
         except Exception as e:
             print(f"An unexpected error occurred: {e}", file=sys.stderr)
             return ""
+
+# FastAPI dependency
+def get_gemini_client() -> GeminiClient:
+    """
+    FastAPIの依存性注入用のファクトリ関数。
+    GeminiClientのインスタンスを返します。
+    """
+    return GeminiClient()

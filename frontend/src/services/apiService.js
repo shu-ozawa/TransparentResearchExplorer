@@ -1,3 +1,5 @@
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+
 const apiService = {
   fetchData: async (endpoint) => {
     const response = await fetch(endpoint);
@@ -8,7 +10,7 @@ const apiService = {
   },
 
   generateQuery: async (initialKeywords) => {
-    const response = await fetch('http://localhost:8080/api/queries/generate', {
+    const response = await fetch(`${BASE_URL}/api/queries/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -24,7 +26,7 @@ const apiService = {
   },
 
   fetchQueryTreeData: async () => {
-    const response = await fetch('http://localhost:8080/api/queries/tree', {
+    const response = await fetch(`${BASE_URL}/api/queries/tree`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -39,7 +41,7 @@ const apiService = {
   },
 
   searchPapers: async (query) => {
-    const response = await fetch('http://localhost:8080/api/papers/search', {
+    const response = await fetch(`${BASE_URL}/api/papers/search`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -55,7 +57,7 @@ const apiService = {
   },
 
   getPaperScore: async (paper, query) => {
-    const response = await fetch('http://localhost:8080/api/papers/score', {
+    const response = await fetch(`${BASE_URL}/api/papers/score`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

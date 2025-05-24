@@ -26,3 +26,6 @@ tenacity
 pytest
 pytest-asyncio
 pytest-mock
+
+# Python dotenv
+python-dotenv

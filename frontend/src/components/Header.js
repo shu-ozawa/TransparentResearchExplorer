@@ -1,11 +1,15 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import './Header.css';
 
 const Header = () => {
   return (
     <header className="header">
       <h1>Transparent Research Explorer</h1>
-      {/* Navigation menu or other header content can go here */}
+      <nav>
+        <Link to="/">ホーム</Link>
+        {/* 必要に応じて他のナビゲーションリンクを追加できます */}
+      </nav>
     </header>
   );
 };

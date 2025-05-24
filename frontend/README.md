@@ -1,70 +1,70 @@
-# Getting Started with Create React App
+# Create React Appを使い始める
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+このプロジェクトは[Create React App](https://github.com/facebook/create-react-app)でブートストラップされました。
 
-## Available Scripts
+## 利用可能なスクリプト
 
-In the project directory, you can run:
+プロジェクトディレクトリで以下のコマンドを実行できます：
 
 ### `npm start`
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+開発モードでアプリを実行します。\
+[http://localhost:3000](http://localhost:3000)をブラウザで開いて表示します。
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+変更を加えると、ページは自動的にリロードされます。\
+コンソールにlintエラーも表示されます。
 
 ### `npm test`
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+インタラクティブなウォッチモードでテストランナーを起動します。\
+詳細については[テストの実行](https://facebook.github.io/create-react-app/docs/running-tests)のセクションを参照してください。
 
 ### `npm run build`
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+本番用のアプリを`build`フォルダにビルドします。\
+Reactを本番モードで正しくバンドルし、最高のパフォーマンスのためにビルドを最適化します。
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+ビルドは最小化され、ファイル名にはハッシュが含まれます。\
+アプリをデプロイする準備が整いました！
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+詳細については[デプロイメント](https://facebook.github.io/create-react-app/docs/deployment)のセクションを参照してください。
 
 ### `npm run eject`
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+**注意：これは一方向の操作です。一度`eject`すると、元に戻すことはできません！**
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+ビルドツールと設定の選択に満足できない場合は、いつでも`eject`できます。このコマンドは、プロジェクトから単一のビルド依存関係を削除します。
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+代わりに、すべての設定ファイルと推移的依存関係（webpack、Babel、ESLintなど）をプロジェクトに直接コピーして、それらを完全に制御できるようになります。`eject`以外のすべてのコマンドは引き続き動作しますが、コピーされたスクリプトを指すようになるため、それらを調整できます。この時点で、あなたは自分自身で管理することになります。
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+`eject`を使用する必要は全くありません。キュレートされた機能セットは小規模から中規模のデプロイメントに適しており、この機能を使用する義務を感じる必要はありません。ただし、準備ができた時にカスタマイズできなければ、このツールは役に立たないことも理解しています。
 
-## Learn More
+## 詳細を学ぶ
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+[Create React Appのドキュメント](https://facebook.github.io/create-react-app/docs/getting-started)で詳細を学ぶことができます。
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+Reactを学ぶには、[Reactのドキュメント](https://reactjs.org/)をチェックしてください。
 
-### Code Splitting
+### コード分割
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+このセクションは[こちら](https://facebook.github.io/create-react-app/docs/code-splitting)に移動しました。
 
-### Analyzing the Bundle Size
+### バンドルサイズの分析
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+このセクションは[こちら](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)に移動しました。
 
-### Making a Progressive Web App
+### プログレッシブWebアプリの作成
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+このセクションは[こちら](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)に移動しました。
 
-### Advanced Configuration
+### 高度な設定
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+このセクションは[こちら](https://facebook.github.io/create-react-app/docs/advanced-configuration)に移動しました。
 
-### Deployment
+### デプロイメント
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+このセクションは[こちら](https://facebook.github.io/create-react-app/docs/deployment)に移動しました。
 
-### `npm run build` fails to minify
+### `npm run build`が最小化に失敗する
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+このセクションは[こちら](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)に移動しました。

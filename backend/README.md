@@ -1,67 +1,67 @@
-# Transparent Research Explorer Backend
+# Transparent Research Explorer バックエンド
 
-This is the backend service for the Transparent Research Explorer application. It provides API endpoints for querying arXiv papers and generating related search queries using the Gemini AI.
+これはTransparent Research Explorerアプリケーションのバックエンドサービスです。arXiv論文の検索とGemini AIを使用した関連検索クエリの生成のためのAPIエンドポイントを提供します。
 
-## Setup Instructions
+## セットアップ手順
 
-### 1. Create a new Conda environment
+### 1. 新しいCondaの環境を作成
 ```bash
 conda create -n tre-api python=3.12 -y
 conda activate tre-api
 ```
 
-### 2. Install dependencies
+### 2. 依存関係のインストール
 ```bash
 cd backend
 pip install -r requirements.txt
 ```
 
-### 3. Set up environment variables
-Create a `.env` file in the `backend` directory with your Gemini API key:
+### 3. 環境変数の設定
+`backend`ディレクトリに`.env`ファイルを作成し、GeminiのAPIキーを設定します：
 ```
 GEMINI_API_KEY=your_api_key_here
 ```
 
-### 4. Run the server
+### 4. サーバーの起動
 ```bash
 uvicorn app.main:app --reload
 ```
 
-The backend server will be available at `http://127.0.0.1:8000`.
+バックエンドサーバーは`http://127.0.0.1:8000`で利用可能になります。
 
-## API Endpoints
+## APIエンドポイント
 
-### Query Generation
-- **POST /api/queries/generate**: Generate related queries from initial keywords using the Gemini API.
+### クエリ生成
+- **POST /api/queries/generate**: Gemini APIを使用して初期キーワードから関連クエリを生成します。
 
-Request body example:
+リクエストボディの例：
 ```json
 {
   "initial_keywords": "machine learning in healthcare"
 }
 ```
 
-Response example:
+レスポンスの例：
 ```json
 {
   "original_query": "machine learning in healthcare",
   "related_queries": [
     {
       "query": "deep learning for medical image analysis",
-      "description": "Focuses on using deep learning techniques to analyze medical images like MRI or CT scans."
+      "description": "MRIやCTスキャンなどの医用画像を分析するための深層学習技術に焦点を当てています。"
     },
     {
       "query": "reinforcement learning in personalized medicine",
-      "description": "Explores applications of reinforcement learning for creating personalized treatment plans."
+      "description": "個別化された治療計画を作成するための強化学習の応用を探求します。"
     }
   ]
 }
 ```
 
-### arXiv Search
-- **POST /api/arxiv/search**: Search for papers on arXiv using keywords.
-- **GET /api/arxiv/search**: Search for papers with query parameters.
+### arXiv検索
+- **POST /api/arxiv/search**: キーワードを使用してarXivの論文を検索します。
+- **GET /api/arxiv/search**: クエリパラメータを使用して論文を検索します。
 
-## Development Notes
+## 開発メモ
 
-This project uses FastAPI for the web framework and SQLAlchemy for database operations. The Gemini API client is used to generate related search queries, and the arXiv API client is used for searching academic papers.
+このプロジェクトはWebフレームワークとしてFastAPI、データベース操作にはSQLAlchemyを使用しています。関連検索クエリの生成にはGemini APIクライアント、学術論文の検索にはarXiv APIクライアントを使用しています。

@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 import logging
 
-from backend.app.clients.gemini_client import GeminiClient
+from backend.app.clients.gemini_client import GeminiClient, get_gemini_client
 from backend.api.arxiv_client import ArxivAPIClient, get_arxiv_client
 from backend.models.paper import Paper
 from backend.core.database import get_db
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 
 router = APIRouter()
@@ -22,10 +22,46 @@ class RelatedQuery(BaseModel):
 
 class QueryGenerationResponse(BaseModel):
     original_query: str
-    related_queries: list[RelatedQuery]
+    related_queries: List[RelatedQuery]
 
-def get_gemini_client():
-    return GeminiClient()
+class QueryTreeNode(BaseModel):
+    name: str
+    children: Optional[List['QueryTreeNode']] = None
+
+class QueryTreeResponse(BaseModel):
+    name: str
+    children: List[QueryTreeNode]
+
+@router.get("/tree", response_model=Optional[QueryTreeResponse], summary="Get the current query tree")
+async def get_query_tree():
+    """
+    現在のクエリツリーを取得します。
+    まだクエリが生成されていない場合はNoneを返します。
+    """
+    try:
+        # ダミーデータを返す（実際の実装ではデータベースから取得するなど）
+        return {
+            "name": "Root Query",
+            "children": [
+                {
+                    "name": "Machine Learning",
+                    "children": [
+                        {"name": "Deep Learning", "children": []},
+                        {"name": "Reinforcement Learning", "children": []}
+                    ]
+                },
+                {
+                    "name": "Natural Language Processing",
+                    "children": [
+                        {"name": "Transformers", "children": []},
+                        {"name": "Language Models", "children": []}
+                    ]
+                }
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error fetching query tree: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch query tree: {str(e)}")
 
 @router.post("/generate", response_model=QueryGenerationResponse, summary="Generate related queries from initial keywords")
 async def generate_related_queries(
@@ -42,34 +78,58 @@ async def generate_related_queries(
 
         # Parse the response to extract related queries
         related_queries = []
-        if "1." in response_text or "\n" in response_text:
-            # Handle numbered list format (if Gemini returns it that way)
-            sections = response_text.split("\n\n")
-            for section in sections:
-                if "1." in section or "2." in section:  # Check for numbered items
-                    lines = section.strip().split("\n")
-                    query_line = lines[0]
-                    description_lines = lines[1:]
-                    description = " ".join(description_lines)
+        lines = response_text.split("\n")
+        current_query = None
+        current_description = []
 
-                    # Extract the actual query text (remove numbering)
-                    if ". " in query_line:
-                        query_text = query_line.split(". ", 1)[1]
-                    else:
-                        query_text = query_line
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
 
-                    related_queries.append(RelatedQuery(query=query_text, description=description))
-                elif ":" in section:  # Handle query: description format
-                    parts = section.split(":", 1)
-                    query_text = parts[0].strip()
-                    description = parts[1].strip()
-                    related_queries.append(RelatedQuery(query=query_text, description=description))
+            # Remove markdown formatting
+            line = line.replace("*", "").replace("`", "").strip()
+
+            # Check if this line contains a query
+            if "Search Query:" in line:
+                # If we have a previous query, save it
+                if current_query:
+                    related_queries.append(RelatedQuery(
+                        query=current_query,
+                        description="\n".join(current_description).strip()
+                    ))
+                    current_description = []
+
+                # Extract new query
+                query_parts = line.split("Search Query:", 1)
+                if len(query_parts) > 1:
+                    current_query = query_parts[1].strip().strip('"')
+                else:
+                    current_query = line.strip().strip('"')
+
+            # Check if this line contains a focus description
+            elif "Focus:" in line:
+                desc_parts = line.split("Focus:", 1)
+                if len(desc_parts) > 1:
+                    current_description.append(desc_parts[1].strip())
+
+        # Add the last query if exists
+        if current_query:
+            related_queries.append(RelatedQuery(
+                query=current_query,
+                description="\n".join(current_description).strip()
+            ))
+
+        # If no queries were found, return the original query
+        if not related_queries:
+            related_queries = [RelatedQuery(
+                query=request.initial_keywords,
+                description="No related queries could be generated."
+            )]
 
         return QueryGenerationResponse(
             original_query=request.initial_keywords,
-            related_queries=related_queries or [
-                RelatedQuery(query="No related queries found", description="")
-            ]
+            related_queries=related_queries
         )
     except Exception as e:
         logger.error(f"Error generating related queries for '{request.initial_keywords}': {e}")

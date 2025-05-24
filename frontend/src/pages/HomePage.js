@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import ExampleComponent from '../components/ExampleComponent';
+import React, { useState, useEffect, useCallback } from 'react';
 import QueryInputForm from '../components/QueryInputForm';
 import PaperCardGrid from '../components/PaperCardGrid';
 import apiService from '../services/apiService';
@@ -14,6 +13,7 @@ const HomePage = () => {
 
   const handleKeywordsSubmit = async (keywords) => {
     try {
+      setSelectedQuery(keywords); // 選択されたクエリを更新
       const result = await apiService.generateQuery(keywords);
       console.log('Generated queries:', result);
 
@@ -21,9 +21,15 @@ const HomePage = () => {
       if (result.related_queries && Array.isArray(result.related_queries)) {
         setQueryTreeData({
           name: result.original_query,
-          children: result.related_queries.map(q => ({ name: q.query }))
+          children: result.related_queries.map(q => ({
+            name: q.query,
+            children: [] // 必要に応じて子ノードを追加
+          }))
         });
       }
+
+      // 自動的に論文検索を実行
+      await handleQuerySelect(keywords);
     } catch (error) {
       console.error('Error generating query:', error);
       alert(`Failed to generate query: ${error.message}`);
@@ -33,10 +39,10 @@ const HomePage = () => {
   // Filtering state
   const [dateRange, setDateRange] = useState([0, 100]);
   const [relevanceRange, setRelevanceRange] = useState([0, 5]);
-  const categories = ['cs.AI', 'cs.LG', 'stat.ML', 'physics.hep-th']; // Example categories
+  const categories = ['cs.AI', 'cs.LG', 'stat.ML', 'physics.hep-th'];
   const [selectedCategories, setSelectedCategories] = useState([]);
 
-  const applyFilters = (results) => {
+  const applyFilters = useCallback((results) => {
     let filtered = results;
 
     // Filter by date range (assuming months from now)
@@ -62,7 +68,7 @@ const HomePage = () => {
     }
 
     setFilteredResults(filtered);
-  };
+  }, [dateRange, relevanceRange, selectedCategories]);
 
   const handleQuerySelect = async (query) => {
     setSelectedQuery(query);
@@ -81,7 +87,7 @@ const HomePage = () => {
       }));
 
       setSearchResults(formattedResults);
-      applyFilters(formattedResults); // Apply filters to the initial results
+      applyFilters(formattedResults);
     } catch (error) {
       console.error('Error searching papers:', error);
       alert(`Failed to search papers: ${error.message}`);
@@ -97,19 +103,21 @@ const HomePage = () => {
     }
   };
 
-  // Apply filters whenever filtering criteria change
   useEffect(() => {
     if (searchResults.length > 0) {
       applyFilters(searchResults);
     }
-  }, [dateRange, relevanceRange, selectedCategories]);
+  }, [searchResults, applyFilters]);
 
   return (
     <div>
       <h1>Transparent Research Explorer</h1>
 
-      {/* Initial keywords input */}
-      <QueryInputForm onSubmit={handleKeywordsSubmit} />
+      {/* 統合された検索フォーム */}
+      <QueryInputForm 
+        onSubmit={handleKeywordsSubmit}
+        initialValue={selectedQuery}
+      />
 
       {/* Query Tree Visualizer with clickable queries */}
       {queryTreeData && (
@@ -121,27 +129,6 @@ const HomePage = () => {
           />
         </>
       )}
-
-      {/* Paper search form (for direct query input) */}
-      <div style={{ marginTop: '20px' }}>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (selectedQuery) {
-              handleQuerySelect(selectedQuery);
-            }
-          }}
-        >
-          <input
-            type="text"
-            value={selectedQuery}
-            onChange={(e) => setSelectedQuery(e.target.value)}
-            placeholder="Enter or select a query to search papers"
-            style={{ marginRight: '10px' }}
-          />
-          <button type="submit">Search Papers</button>
-        </form>
-      </div>
 
       {/* Filter panel */}
       {searchResults.length > 0 && (
