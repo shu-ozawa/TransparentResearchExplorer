@@ -13,26 +13,40 @@ const dummyPaper = {
 };
 
 const PaperCard = ({ paper, query }) => {
-  const { title, authors, date, abstract, relevanceScore, categories } = paper;
-  const [score, setScore] = useState(relevanceScore);
-  const [loading, setLoading] = useState(!relevanceScore);
+  const { title, authors, date, abstract, categories } = paper; // relevanceScore removed from destructuring here as we refer to paper.relevanceScore directly
 
-  // Fetch score if not already provided
+  const initialScore = typeof paper.relevanceScore === 'number'
+    ? Math.round(paper.relevanceScore * 5)
+    : null;
+  const [score, setScore] = useState(initialScore);
+  const [loading, setLoading] = useState(typeof paper.relevanceScore !== 'number');
+
+  // Fetch score if not already provided, or update if prop changes
   useEffect(() => {
-    if (!relevanceScore && query) {
+    // Check if relevanceScore from props is null or undefined
+    if (typeof paper.relevanceScore !== 'number' && query) {
       setLoading(true);
-      apiService.getPaperScore(paper, query)
+      apiService.getPaperScore(paper, query) // paper object passed to API
         .then(response => {
-          const scoreValue = Math.round(response.score * 5); // Convert 0-1 scale to 0-5
+          const scoreValue = Math.round(response.score * 5); // API returns 0-1, scale to 0-5
           setScore(scoreValue);
           setLoading(false);
         })
         .catch(error => {
           console.error("Error fetching paper score:", error);
+          setScore(null); // Set score to null on error
           setLoading(false);
         });
+    } else if (typeof paper.relevanceScore === 'number' && score !== Math.round(paper.relevanceScore * 5)) {
+      // This handles the case where props update, ensuring the displayed score reflects the prop.
+      // Also useful if initialScore was null but then paper.relevanceScore becomes available from props later.
+      setScore(Math.round(paper.relevanceScore * 5));
+      setLoading(false); // Ensure loading is false if score is provided
+    } else if (typeof paper.relevanceScore === 'number' && loading) {
+      // If score was provided initially but loading was true for some reason, set loading to false.
+      setLoading(false);
     }
-  }, [paper, query, relevanceScore]);
+  }, [paper, paper.relevanceScore, query, score, loading]); // Added paper.relevanceScore and loading to dependency array
 
   return (
     <Card sx={{ maxWidth: 345, margin: 2 }}>
