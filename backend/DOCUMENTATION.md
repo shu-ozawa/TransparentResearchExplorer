@@ -1,160 +1,168 @@
-# バックエンドドキュメント
+# Transparent Research Explorer バックエンドドキュメント
 
-このドキュメントは、Transparent Research Explorerアプリケーションのバックエンドアーキテクチャ、APIエンドポイント、データベースセットアップ、外部サービス連携、および主要な依存関係について包括的な概要を提供します。
+このドキュメントは、Transparent Research Explorer（以下、TRE）アプリケーションのバックエンドシステムに関する包括的な技術概要を提供します。主な対象読者は、本システムの開発・運用に携わるエンジニアです。アーキテクチャ、APIエンドポイント、データベース設計、外部サービス連携、主要な技術スタックについて詳細に解説します。
 
-## 全体のアーキテクチャ
+## 1. 全体アーキテクチャ
 
-バックエンドはFastAPIフレームワークを使用したPythonアプリケーションです。保守性を高めるために、関心事の分離に基づくモジュラー設計を採用しています。コードは主に以下のディレクトリに整理されています：
+TREバックエンドは、PythonのモダンなWebフレームワークであるFastAPIを基盤として構築されています。システムの保守性と拡張性を高めるため、関心の分離 (Separation of Concerns) を重視したモジュラー設計を採用しています。主要なコードコンポーネントは、以下のディレクトリ構造で体系的に管理されています。
 
--   **`backend/app/`**: メインのFastAPIアプリケーションのセットアップ（`main.py`）と、Google Gemini APIなどの外部サービスとの対話を行うクライアント（`clients/gemini_client.py`）が含まれています。
--   **`backend/api/`**: 外部API（arXiv学術論文サービスなど、`arxiv_client.py`経由）との対話を処理し、アプリケーション自身のAPIエンドポイント（`endpoints/`）の構造を定義します。
--   **`backend/core/`**: アプリケーションの動作に不可欠なコア機能、特にデータベースのセットアップ、設定、セッション管理（`database.py`）を格納します。
--   **`backend/models/`**: データベーステーブルの構造を表すSQLAlchemy Object-Relational Mapper（ORM）モデル（`paper.py`）を定義します。
--   **`backend/schemas/`**: データの検証、シリアル化、およびリクエスト/レスポンスボディの自動API文書化に使用されるPydanticモデル（`arxiv_schema.py`およびエンドポイントファイル内で定義されるその他のモデル）を含みます。
+-   **`backend/app/`**: FastAPIアプリケーションのコアロジックを格納します。これには、アプリケーションインスタンスの生成と設定を行う`main.py`や、Google Gemini APIなどの外部サービスとの連携を担うクライアントモジュール（例：`clients/gemini_client.py`）が含まれます。
+-   **`backend/api/`**: 外部API（例：arXiv学術論文データベース）との通信処理と、TRE自身が公開するAPIエンドポイントの定義を担当します。`arxiv_client.py`のようなクライアント実装や、各機能に対応するエンドポイント群（`endpoints/`ディレクトリ内）が配置されます。
+-   **`backend/core/`**: アプリケーション全体の動作に不可欠な基盤機能を提供します。具体的には、データベースの接続設定、セッション管理（`database.py`）、設定値の管理などが該当します。
+-   **`backend/models/`**: データベースのテーブル構造を定義するSQLAlchemyのORM（Object-Relational Mapper）モデル（例：`paper.py`）が格納されます。これにより、Pythonオブジェクトを通じて直感的にデータベース操作を行えます。
+-   **`backend/schemas/`**: データ検証、シリアル化、APIドキュメントの自動生成に用いられるPydanticモデルを管理します。`arxiv_schema.py`のような汎用的なスキーマや、各エンドポイント固有のリクエスト・レスポンススキーマが定義されます。
 
-### `backend/app/main.py` - FastAPIアプリケーション
+### 1.1. `backend/app/main.py` - FastAPIアプリケーションエントリーポイント
 
-`app/main.py`スクリプトはバックエンドアプリケーションのエントリーポイントであり、中核となります。その責務には以下が含まれます：
+`app/main.py`は、TREバックエンドアプリケーションの起動点であり、システム全体の挙動を統括する中心的な役割を果たします。主な責務は以下の通りです。
 
--   **FastAPIアプリの初期化**: アプリケーションのタイトルや説明などのグローバル設定を行い、`FastAPI`アプリケーションのインスタンスを作成します。
--   **データベースのセットアップ**: 起動時に`create_db_and_tables()`（`backend.core.database`から）を呼び出し、SQLiteデータベースに必要なすべてのテーブル（`backend/models/`で定義）が作成されていることを確認します。
--   **ルーターの組み込み**: `backend.api.endpoints`モジュールからAPIルーターを組み込みます。各ルーターは関連するエンドポイントを共通のプレフィックス（例：`/api/arxiv`、`/api/queries`、`/api/papers`）の下にグループ化し、API構造を整理しバージョン管理可能にします。
--   **ルートエンドポイント**: ヘルスチェックやシンプルなウェルカムメッセージ用の基本的なGETエンドポイントを`/`に定義します。
+-   **FastAPIアプリケーションの初期化**: `FastAPI`クラスのインスタンスを生成し、アプリケーション名、バージョン、説明といったグローバル設定を適用します。
+-   **データベースのセットアップ**: アプリケーション起動時に`core.database`モジュールの`create_db_and_tables()`関数を呼び出します。これにより、`models/`ディレクトリで定義されたORMモデルに基づき、SQLiteデータベース内に必要なテーブルが自動的に作成されます。（補足：より複雑なアプリケーション構成やアプリケーションファクトリパターンを採用する場合、この初期化処理はモジュールレベルでの直接実行ではなく、`@app.on_event("startup")`デコレータを用いたイベントハンドラ内で実行することが推奨される場合があります。）
+-   **APIルーターの登録**: `api.endpoints`モジュール群から、各機能に対応するAPIルーターを読み込み、アプリケーションに登録します。これにより、エンドポイントが機能毎（例：`/api/arxiv`, `/api/queries`, `/api/papers`）に整理され、管理とバージョン管理が容易になります。
+-   **ルートエンドポイントの定義**: アプリケーションのヘルスチェックや、基本的な動作確認を目的とした、ルートパス (`/`) へのGETリクエストに対するシンプルな応答エンドポイントを設けています。
 
-## APIエンドポイント
+## 2. APIエンドポイント
 
-バックエンドは`backend/api/endpoints/`ディレクトリ内で定義された複数のRESTful APIエンドポイントを公開しています。これらのエンドポイントはフロントエンドとの対話とデータ操作を容易にします。
+TREバックエンドは、フロントエンドアプリケーションや外部システムとの連携のため、`backend/api/endpoints/`ディレクトリ以下で定義された複数のRESTful APIエンドポイントを公開しています。これらのエンドポイントを通じて、データの取得、登録、更新、削除といった操作が可能になります。
 
-### 1. arXivエンドポイント（`/api/arxiv`）
+### 2.1. arXivエンドポイント (`/api/arxiv`)
 
-`backend/api/endpoints/arxiv.py`で管理されています。これらのエンドポイントはarXivリポジトリの検索を可能にします。
+`backend/api/endpoints/arxiv.py`にて定義・管理されており、主に学術論文データベースであるarXivからの情報取得に関連する機能を提供します。
 
--   **`GET /search`**および**`POST /search`**
-    -   **目的**: 指定されたキーワードに基づいてarXivの論文を検索します。GETバージョンはパラメータをURLクエリ文字列として受け取り、POSTバージョンはJSONリクエストボディを期待します。
+-   **`GET /search`** 及び **`POST /search`**
+    -   **目的**: 指定されたキーワードに基づき、arXivデータベース内の論文を検索します。GETリクエストの場合はURLクエリパラメータで、POSTリクエストの場合はJSON形式のリクエストボディで検索条件を受け付けます。
     -   **入力**:
-        -   `keyword`（str）: 検索語またはキーワード。
-        -   `max_results`（int、オプション、デフォルト：10）: 返す論文の最大数。
-    -   **リクエストボディ（POSTの場合）**: `ArxivSearchRequest`スキーマ（`{ "keyword": "...", "max_results": ... }`）
-    -   **出力**: `ArxivSearchResponse`スキーマ（`{ "papers": [...], "total_results": ... }`）
-        -   `papers`: `ArxivPaper`オブジェクトのリスト。各オブジェクトには`entry_id`、`title`、`authors`、`summary`、`published`日付、`updated`日付、`pdf_url`、`categories`などの詳細が含まれます。
-        -   `total_results`: 現在のレスポンスで返された論文の数。
+        -   `keyword` (str): 検索キーワード。
+        -   `max_results` (int, オプション, デフォルト: 10): 取得する論文の最大件数。
+    -   **リクエストボディ (POSTの場合)**: `ArxivSearchRequest`スキーマ (`{ "keyword": "...", "max_results": ... }`) に準拠。
+    -   **出力**: `ArxivSearchResponse`スキーマ (`{ "papers": [...], "total_results": ... }`) に準拠。
+        -   `papers`: `ArxivPaper`オブジェクトのリスト。各オブジェクトには、論文ID (`entry_id`)、タイトル、著者リスト、要約 (`summary`)、出版日、最終更新日、PDF URL、カテゴリといった詳細情報が含まれます。
+        -   `total_results`: レスポンスに含まれる論文の件数。
 
-### 2. 論文エンドポイント（`/api/papers`）
+### 2.2. 論文エンドポイント (`/api/papers`)
 
-`backend/api/endpoints/papers.py`で管理されています。このグループは現在、論文の処理とスコアリングに焦点を当てています。
+`backend/api/endpoints/papers.py`で管理されており、論文データの処理や評価に関連する機能群です。
 
 -   **`POST /score`**
-    -   **目的**: 特定のクエリに対する研究論文の関連性スコア（0-1）とテキストによる説明を生成します。これはGemini言語モデルを活用して実現されます。
-    -   **入力**: `ScoreRequest`スキーマ
-        -   `paper`（オブジェクト）: 論文情報を含みます：
-            -   `title`（str）
-            -   `authors`（strのリスト）
-            -   `abstract`（str）
-        -   `query`（str）: 論文と比較するユーザーのクエリ。
-    -   **出力**: `RelevanceScoreResponse`スキーマ
-        -   `score`（float）: 0.0（関連性なし）から1.0（高い関連性）までの数値スコア。
-        -   `explanation`（str）: 割り当てられたスコアの理由を説明するGeminiが生成した簡潔なテキスト。
-    -   **Geminiとの対話**: エンドポイントは論文の要約、タイトル、著者とユーザーのクエリを組み合わせた詳細なプロンプトを構築します。このプロンプトはGemini APIに送信され、レスポンスからスコアと説明が抽出されます。
-
-### 3. クエリエンドポイント（`/api/queries`）
-
-`backend/api/endpoints/queries.py`で管理されています。これらのエンドポイントはクエリの生成と論文の検索/キャッシュを処理します。
-
--   **`POST /generate`**
-    -   **目的**: ユーザーが提供した初期キーワードまたは研究テーマに基づいて、関連する検索クエリのリストを生成します。これはGemini言語モデルを使用して、代替的なまたはより具体的なクエリを提案します。
-    -   **入力**: `QueryGenerationRequest`スキーマ
-        -   `initial_keywords`（str）: ユーザーの開始キーワードまたは研究トピック。
-    -   **出力**: `QueryGenerationResponse`スキーマ
-        -   `original_query`（str）: ユーザーが提供した初期キーワード。
-        -   `related_queries`（オブジェクトのリスト）: 各オブジェクトには以下が含まれます：
-            -   `query`（str）: 提案された関連クエリ。
-            -   `description`（str）: 関連クエリが焦点を当てる内容の簡単な説明。
-    -   **Geminiとの対話**: `initial_keywords`を使用してプロンプトを作成し、Geminiに5-7個の関連クエリとその説明の生成を依頼します。Geminiからのテキストレスポンスは出力形式に構造化されます。
+    -   **目的**: 特定の研究論文とユーザーの検索クエリとの間の関連性を評価し、0から1の範囲のスコアと、そのスコアの根拠を説明するテキストを生成します。この評価には、後述するGemini大規模言語モデルが活用されます。
+    -   **入力**: `ScoreRequest`スキーマに準拠。
+        -   `paper` (object): 評価対象の論文情報。以下の要素を含みます。
+            -   `title` (str): 論文タイトル。
+            -   `authors` (list[str]): 著者名のリスト。
+            -   `abstract` (str): 論文の要約。
+        -   `query` (str): ユーザーが入力した検索クエリ。
+    -   **出力**: `RelevanceScoreResponse`スキーマに準拠。
+        -   `score` (float): 0.0 (非関連) から 1.0 (高関連) までの数値スコア。
+        -   `explanation` (str): Geminiモデルによって生成された、スコアの根拠を簡潔に説明するテキスト。
+    -   **Geminiとの連携**: このエンドポイントは、論文のタイトル、著者、要約とユーザーのクエリを組み合わせ、Gemini APIへの入力プロンプトを構築します。APIからの応答を解析し、スコアと説明文を抽出して返却します。
 
 -   **`POST /search`**
-    -   **目的**: 提供されたクエリリストを使用してarXivで論文を検索し、結果を統合し、冗長な外部APIコールを最小限に抑えるためにローカルデータベースにキャッシュし、見つかった論文の重要な情報を返します。
-    -   **入力**: `SearchQuery`オブジェクトのリスト。各`SearchQuery`オブジェクトには以下が含まれます：
-        -   `query`（str）: 特定の検索クエリ文字列。
-        -   `max_results`（int、オプション、デフォルト：10）: この特定のクエリの最大結果数。
-    -   **出力**: `PaperSearchResponse`オブジェクトのリスト。各オブジェクトには以下が含まれます：
-        -   `title`（str）
-        -   `authors`（strのリスト）
-        -   `summary`（str）
-        -   `published_date`（datetime）
-        -   `url`（str、通常はPDF URL）
-    -   **キャッシュの対話**:
-        1.  入力リストの各クエリに対して、システムはまず`ArxivAPIClient`を使用してarXivから論文の`entry_id`リストを取得します。
-        2.  次に、これらの`entry_id`を持つ論文がローカルの`papers_cache`データベーステーブル（`Paper`モデル経由）に既に存在するかチェックします。
-        3.  論文がキャッシュに見つかった場合、そのデータが直接使用されます。
-        4.  論文がキャッシュに見つからない場合、arXivから取得したデータ（`ArxivAPIClient`経由）が将来のリクエストのために`papers_cache`テーブルに保存されます。
-        5.  結合された結果（キャッシュされたものと新しく取得したもの）がフォーマットされて返されます。
+    -   **目的**: 指定されたクエリに基づいてarXivの論文を検索します。このエンドポイントは`/api/arxiv/search`と類似の機能を提供しますが、`/api/papers`パス下に配置されており、レスポンスとして`PaperInfo`スキーマのリストを返す点が異なります。主にフロントエンドが必要とする論文情報の形式に特化しています。
+    -   **リクエストボディ**: `SearchRequest`スキーマ（`backend/api/endpoints/papers.py`より） - `{ "query": "検索クエリ文字列" }`
+    -   **出力**: `List[PaperInfo]`スキーマ - 各`PaperInfo`オブジェクトには、`title`（タイトル）、`authors`（著者リスト）、`abstract`（要約）が含まれます。
+    -   **備考**: このエンドポイントは、`/api/arxiv/search`と比較して、特定のユースケースに合わせた代替的な論文検索手段を提供します。
 
-## データベース（`backend/core/database.py`、`backend/models/paper.py`）
+### 2.3. クエリエンドポイント (`/api/queries`)
 
-バックエンドはキャッシュとデータ永続化のためにローカルのSQLiteデータベースを使用します。
+`backend/api/endpoints/queries.py`で管理されており、検索クエリの生成支援や、複数クエリによる論文検索と結果のキャッシュ処理などを担当します。
 
--   **データベースファイル**: `tre_cache.db`（`backend/`ディレクトリに配置）。
--   **SQLAlchemy**: アプリケーションはObject-Relational Mapper（ORM）としてSQLAlchemyを使用します。
-    -   `backend/core/database.py`はデータベースエンジン（`create_engine`）とセッション管理（`SessionLocal`、FastAPI用の`get_db`依存関係）を設定します。また、宣言的モデル定義用の`Base`とデータベーススキーマを初期化する`create_db_and_tables()`関数も提供します。
--   **`Paper`モデル（`backend/models/paper.py`）**:
-    -   このSQLAlchemyモデルは`papers_cache`テーブルの構造を定義します。
-    -   **フィールドには以下が含まれます**:
-        -   `id`（Integer、主キー）
-        -   `arxiv_id`（String、一意、インデックス付き）: arXivからの一意の識別子。
-        -   `title`（String）
-        -   `authors`（JSON）: 著者名のJSON配列として保存。
-        -   `abstract`（Text）
-        -   `published_date`（DateTime）
-        -   `url`（String）: 通常はPDFリンク。
-        -   `created_at`、`updated_at`（DateTime）: レコード管理用のタイムスタンプ。
-    -   **`papers_cache`テーブルの役割**: このテーブルはarXivから取得した論文メタデータのキャッシュとして機能します。結果をローカルに保存することで、アプリケーションは外部arXiv APIへのコール数を大幅に削減でき、繰り返しのクエリに対する応答時間が速くなり、arXivサーバーへの負荷も軽減されます。`/api/queries/search`エンドポイントはこのキャッシュメカニズムの主要なインターフェースです。
+-   **`POST /generate`**
+    -   **目的**: ユーザーが提供した初期キーワードや研究テーマに基づき、関連性の高い検索クエリのリストを生成します。Gemini大規模言語モデルを利用し、より具体的、あるいは代替的な検索語句を提案することで、ユーザーの文献調査を支援します。
+    -   **入力**: `QueryGenerationRequest`スキーマに準拠。
+        -   `initial_keywords` (str): ユーザーが入力した最初のキーワードまたは研究テーマ。
+    -   **出力**: `QueryGenerationResponse`スキーマに準拠。
+        -   `original_query` (str): ユーザーが提供した初期キーワード。
+        -   `related_queries` (list[object]): 関連クエリのリスト。各オブジェクトは以下を含みます。
+            -   `query` (str): 提案された関連検索クエリ。
+            -   `description` (str): その関連クエリがどのような観点からの検索を目指すかの簡単な説明。
+    -   **Geminiとの連携**: `initial_keywords`を基にプロンプトを生成し、Gemini APIに5～7個程度の関連クエリとその説明の生成を依頼します。返却されたテキストベースの応答を構造化し、クライアントに返します。
 
-## 外部サービスとの対話
+-   **`POST /search`**
+    -   **目的**: 複数の検索クエリを用いてarXivから論文を横断的に検索し、得られた結果を統合します。重複した外部API呼び出しを避けるため、一度取得した論文情報はローカルデータベースにキャッシュし、効率的な情報提供を実現します。
+    -   **入力**: `SearchQuery`オブジェクトのリスト。各`SearchQuery`オブジェクトは以下を含みます。
+        -   `query` (str): 個別の検索クエリ文字列。
+        -   `max_results` (int, オプション, デフォルト: 10): このクエリに対する最大取得件数。
+    -   **出力**: `PaperSearchResponse`オブジェクトのリスト。各オブジェクトは以下を含みます。
+        -   `title` (str): 論文タイトル。
+        -   `authors` (list[str]): 著者リスト。
+        -   `summary` (str): 論文の要約。
+        -   `published_date` (datetime): 出版日。
+        -   `url` (str): 論文PDFへのURL。
+    -   **キャッシュ戦略**:
+        1.  入力された各検索クエリについて、まず`ArxivAPIClient`を用いてarXivから論文の識別子（`entry_id`）リストを取得します。
+        2.  次に、これらの`entry_id`を持つ論文が、ローカルの`papers_cache`データベーステーブル（`Paper`モデル経由でアクセス）に既に存在するかを確認します。
+        3.  キャッシュに存在する場合、データベースから直接論文情報を取得します。
+        4.  キャッシュに存在しない場合、`ArxivAPIClient`を通じてarXivから完全な論文情報を取得し、将来の参照のために`papers_cache`テーブルに保存します。
+        5.  キャッシュデータと新規取得データを統合し、整形してクライアントに返却します。このキャッシュ機構により、arXiv APIへの負荷軽減と、過去に検索されたクエリに対する応答速度の向上が図られます。
 
-バックエンドは主に2つの外部サービス（arXivとGoogle Gemini）と連携します。
+## 3. データベース (`backend/core/database.py`, `backend/models/paper.py`)
 
-### 1. arXiv（`backend/api/arxiv_client.py`）
+TREバックエンドは、検索結果のキャッシュおよび一部データの永続化のために、ローカルSQLiteデータベースを利用しています。
 
--   **目的**: arXiv.org e-printアーカイブから学術論文のメタデータを検索および取得します。
--   **対話**:
-    -   `ArxivAPIClient`クラスはarXivとの対話ロジックをカプセル化します。
-    -   公式の`arxiv` Pythonライブラリを使用します。
-    -   `search_papers`メソッドはキーワードと最大結果数を受け取り、arXiv APIにクエリを送信し、結果を`ArxivPaper` Pydanticスキーマオブジェクトのリストに変換します。
-    -   **リトライロジック**: クライアントは`tenacity`ライブラリを使用してリトライ機能を組み込んでいます。arXiv APIへのコールが失敗した場合（例：`ArxivHTTPError`や`ArxivUnexpectedEmptyPageError`など）、指数バックオフを使用して自動的にリクエストを数回再試行し、連携の堅牢性を高めます。
+-   **データベースファイル**: `tre_cache.db` という名称で、`backend/`ディレクトリ直下に配置されます。
+-   **SQLAlchemyの利用**: データベース操作には、Pythonで広く使われているORMであるSQLAlchemyを採用しています。
+    -   `backend/core/database.py`: データベースエンジン (`create_engine`で生成) とセッション管理 (`SessionLocal`、FastAPIの依存性注入で利用される`get_db`関数) の設定を行います。また、ORMモデルの基底クラスとなる`Base`や、データベーススキーマ（テーブル群）を初期化する`create_db_and_tables()`関数を提供します。
+-   **`Paper`モデル (`backend/models/paper.py`)**:
+    -   このSQLAlchemyモデルは、`papers_cache`テーブルの構造を定義します。このテーブルは、arXivから取得した論文のメタデータを格納するためのキャッシュとして機能します。
+    -   **主なフィールド**:
+        -   `id` (Integer, 主キー): レコードの一意な識別子。
+        -   `arxiv_id` (String, 一意, インデックス付き): arXivにおける論文の一意な識別子。検索効率向上のためインデックスが付与されています。
+        -   `title` (String): 論文タイトル。
+        -   `authors` (JSON): 著者名のリストをJSON形式で保存。
+        -   `abstract` (Text): 論文の要約。長文を想定しText型を使用。
+        -   `published_date` (DateTime): 出版日。
+        -   `url` (String): 主に論文PDFへの直接リンク。
+        -   `created_at`, `updated_at` (DateTime): レコードの作成日時と最終更新日時。監査やデータ管理に利用。
+    -   **`papers_cache`テーブルの役割**: arXivから取得した論文メタデータをローカルに保存することで、同一論文への繰り返しのリクエストに対して外部APIへの問い合わせを不要にします。これにより、(1) アプリケーションの応答速度の向上、(2) arXivサーバーへの負荷軽減、(3) オフライン時（限定的）のデータ参照可能性、といったメリットが生まれます。特に`/api/queries/search`エンドポイントは、このキャッシュ機構を積極的に活用します。
 
-### 2. Gemini（`backend/app/clients/gemini_client.py`）
+## 4. 外部サービスとの連携
 
--   **目的**: 高度なテキスト生成と理解タスクのためにGoogleのGemini大規模言語モデルを活用します。
--   **対話**:
-    -   `GeminiClient`クラスはGemini APIとの通信を管理します。
-    -   認証のために`GEMINI_API_KEY`を環境変数として設定する必要があります。
-    -   主要なメソッド`generate_text(prompt: str)`は、与えられたプロンプトを`gemini-pro`モデルに送信し、生成されたテキストレスポンスを返します。
-    -   **アプリケーションでの使用**:
-        -   **関連性スコアリング（`/api/papers/score`）**: Geminiを使用して、研究論文がユーザーのクエリにどの程度関連しているかを評価し、数値スコアとテキストによる正当化を生成します。
-        -   **関連クエリ生成（`/api/queries/generate`）**: Geminiを使用して、ユーザーの初期キーワードまたは研究テーマに基づいて、関連する、または代替的な検索クエリを提案します。
-    -   クライアントにはAPIコールとレスポンス解析の基本的なエラーハンドリングが含まれています。
+TREバックエンドは、機能実現のために主に以下の2つの外部サービスと連携しています。
 
-## データスキーマ（Pydanticモデル）
+### 4.1. arXiv (`backend/api/arxiv_client.py`)
 
--   **場所**: `backend/schemas/arxiv_schema.py`（arXiv固有の構造用）および`backend/api/endpoints/`内の各エンドポイントファイル内で他のリクエスト/レスポンスボディ用にインラインで定義されています。
--   **目的**: Pydanticモデルは以下の理由で重要です：
-    -   **データ検証**: 入力リクエストデータを自動的に検証します。データが定義されたスキーマに準拠していない場合（例：データ型が間違っている、フィールドが欠落している）、FastAPIは明確なエラーレスポンスを返します。
-    -   **データシリアル化**: 出力レスポンスデータの構造化とシリアル化に使用され、一貫性を確保します。
-    -   **API文書化**: FastAPIはこれらのPydanticモデルを使用して、期待されるリクエストとレスポンスの形式を示す対話型API文書（例：Swagger UIやReDoc経由）を自動生成します。これによりAPIは自己文書化され、理解と使用が容易になります。
+-   **目的**: 世界的な学術論文プレプリントサーバーであるarXiv.orgから、論文のメタデータ（タイトル、著者、要約、出版日、PDFリンクなど）を検索・取得します。TREの論文検索機能の根幹をなすデータソースです。
+-   **連携方法**:
+    -   `ArxivAPIClient`クラス (`backend/api/arxiv_client.py`内) が、arXivとの通信ロジックをカプセル化しています。
+    -   内部的には、公式の`arxiv` Pythonライブラリを利用してarXiv APIとのインタラクションを行います。
+    -   主要メソッドである`search_papers`は、検索キーワードと最大取得件数を引数に取り、arXiv APIへリクエストを送信します。取得した結果は、`ArxivPaper` Pydanticスキーマオブジェクトのリストへと変換され、アプリケーション内で統一的に扱える形式になります。
+    -   **リトライ機構**: ネットワークの不安定性や一時的なAPIエラーに対応するため、`tenacity`ライブラリを用いたリトライ機構が実装されています。`ArxivHTTPError`や`ArxivUnexpectedEmptyPageError`といった特定の例外が発生した場合、指数バックオフ戦略（リトライ間隔を徐々に長くする）に基づいて、自動的にリクエストを数回再試行します。これにより、外部サービスとの連携における堅牢性を高めています。
 
-## 主要な依存関係（`backend/requirements.txt`）
+### 4.2. Gemini (`backend/app/clients/gemini_client.py`)
 
-バックエンドは以下の主要なPythonライブラリに依存しています：
+-   **目的**: Googleによって開発された高性能な大規模言語モデル（LLM）であるGeminiを活用し、高度な自然言語処理機能（テキスト生成、理解、要約など）をアプリケーションに組み込みます。
+-   **連携方法**:
+    -   `GeminiClient`クラス (`backend/app/clients/gemini_client.py`内) が、Gemini APIとの通信を管理します。
+    -   API利用には、環境変数`GEMINI_API_KEY`に有効なAPIキーが設定されている必要があります。
+    -   中心的なメソッドである`generate_text(prompt: str)`は、与えられたプロンプト文字列を`gemini-2.5-flash-preview-05-20`モデルに送信し、生成されたテキストレスポンスを返却します。
+    -   **TREアプリケーションにおける具体的な利用例**:
+        -   **関連性スコアリング (`/api/papers/score`)**: ユーザーの検索クエリと論文情報（タイトル、要約など）を基に、論文のクエリへの関連度を0～1のスコアで評価し、その根拠をテキストで説明します。
+        -   **関連クエリ生成 (`/api/queries/generate`)**: ユーザーが入力した初期キーワードや研究テーマを拡張・深化させるような、関連性の高い検索クエリ群を提案します。
+    -   クライアント実装には、API呼び出し時の基本的なエラーハンドリングや、レスポンス解析のロジックが含まれています。
 
--   **`fastapi`**: Python 3.7+の標準的な型ヒントに基づいて、APIを構築するための最新の高性能Webフレームワーク。
--   **`uvicorn[standard]`**: FastAPIアプリケーションを実行するためのASGI（Asynchronous Server Gateway Interface）サーバー。`[standard]`オプションにはwebsocketsやhttp/2サポートなどの有用な追加機能が含まれます。
--   **`google-generativeai`**: Geminiを含むGoogleの生成AI APIのための公式Pythonクライアントライブラリ。
--   **`sqlalchemy`**: アプリケーション開発者にSQLの完全な機能と柔軟性を提供するPython SQLツールキットとObject Relational Mapper。データベース対話に使用されます。
--   **`aiosqlite`**: 非同期FastAPIアプリケーションでSQLAlchemyをSQLiteと共に使用するために必要な非同期SQLiteドライバー。
--   **`arxiv`**: arXiv APIのPythonラッパー。論文データの取得に使用されます。
--   **`httpx`**: Python 3用の完全な機能を備えたHTTPクライアント。FastAPIのAPIエンドポイントテスト用の`TestClient`で使用されます。
--   **`tenacity`**: `ArxivAPIClient`でarXiv APIを呼び出す際の一時的なエラーを処理するために使用される汎用リトライライブラリ。
--   **`pytest`、`pytest-asyncio`、`pytest-mock`**: アプリケーションのテストに使用されるライブラリ（ランタイムの直接の一部ではありませんが、開発には重要です）。
+## 5. データスキーマ (Pydanticモデル)
 
-このドキュメントはバックエンドシステムのコンポーネントとそれらの相互作用について明確な理解を提供するはずです。
+TREバックエンドでは、データの構造定義、バリデーション、シリアライゼーションにPydanticモデルを広範に活用しています。
+
+-   **定義場所**: arXivから取得するデータのように汎用的な構造を持つものは`backend/schemas/arxiv_schema.py`に、各APIエンドポイント固有のリクエスト・レスポンスボディの構造は、それぞれのエンドポイント定義ファイル内（例：`backend/api/endpoints/papers.py`）にインラインで定義されています。
+-   **Pydanticモデルの主な役割とメリット**:
+    -   **データ検証**: APIリクエストとして受け取った入力データが、定義されたスキーマ（型、必須フィールド、値の範囲など）に適合するかを自動的に検証します。スキーマ違反があった場合、FastAPIは詳細なエラー情報を含むHTTP 422レスポンスをクライアントに返却します。これにより、不正なデータによる後続処理のエラーを未然に防ぎます。
+    -   **データシリアル化**: Pythonオブジェクト（例：ORMモデルのインスタンス）をJSONなどの形式に変換してAPIレスポンスとして出力する際や、逆にJSONデータをPythonオブジェクトに変換する際に、型の整合性を保ちつつ効率的に処理します。
+    -   **APIドキュメント自動生成**: FastAPIはPydanticモデルの定義を解析し、Swagger UI (OpenAPI) やReDocといった対話的なAPIドキュメントを自動生成します。これにより、APIの仕様が常に最新のコードと同期され、開発者はAPIの利用方法を容易に理解できます。APIが「自己文書化」されるため、ドキュメント作成・維持の負担が軽減されます。
+
+## 6. 主要な依存関係 (`backend/requirements.txt`)
+
+TREバックエンドは、以下の主要なPythonライブラリに依存して構築されています。これらのライブラリは`backend/requirements.txt`ファイルにリストされており、`pip install -r backend/requirements.txt`コマンドで一括インストール可能です。
+
+-   **`fastapi`**: Python 3.7+の型ヒントを活用した、API開発のためのモダンで高性能なWebフレームワーク。非同期処理に対応し、高いパフォーマンスと開発効率を実現します。
+-   **`uvicorn[standard]`**: FastAPIアプリケーションを実行するためのASGI (Asynchronous Server Gateway Interface) サーバー。`[standard]`オプションには、WebSocketやHTTP/2プロトコルのサポートなど、実運用に有用な追加機能が含まれます。
+-   **`google-generativeai`**: GoogleのGeminiをはじめとする生成AIモデルのAPIを利用するための公式Pythonクライアントライブラリ。
+-   **`sqlalchemy`**: PythonにおけるSQL操作とORMの標準的なライブラリ。データベースとの対話を抽象化し、Pythonicなコードでデータアクセスを可能にします。
+-   **`aiosqlite`**: 非同期処理を特徴とするFastAPIアプリケーション内で、SQLAlchemyを通じてSQLiteデータベースを非同期に操作するために必要なドライバー。
+-   **`arxiv`**: arXiv APIのPythonラッパー。論文メタデータの検索・取得処理を簡略化します。
+-   **`httpx`**: Python 3対応の多機能なHTTPクライアントライブラリ。FastAPIのAPIエンドポイントをテストする際に用いられる`TestClient`の内部依存関係としても利用されます。
+-   **`tenacity`**: 汎用のリトライ処理ライブラリ。`ArxivAPIClient`において、arXiv API呼び出し時のネットワークエラーなど、一時的な障害からの回復性を高めるために使用されます。
+-   **`pytest`, `pytest-asyncio`, `pytest-mock`**: これらはアプリケーションのテストコード記述・実行を支援するライブラリ群です（直接的なランタイム依存ではありませんが、開発プロセスにおいて極めて重要です）。`pytest`は高機能なテストフレームワーク、`pytest-asyncio`は非同期コードのテストを、`pytest-mock`はオブジェクトのモック化（テストダブルの作成）を容易にします。
+
+このドキュメントが、TREバックエンドシステムの構成要素とその相互作用について、明確な理解の一助となれば幸いです。
 ---
