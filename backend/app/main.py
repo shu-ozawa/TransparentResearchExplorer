@@ -2,8 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.core.database import engine, Base, create_db_and_tables # Updated import
 from backend.api.endpoints import arxiv as arxiv_router  # Import the arxiv router
-from backend.api.endpoints import queries as queries_router  # Import the queries router
-from backend.api.endpoints import papers as papers_router  # Import the papers router
+from backend.api.endpoints import research_tree as research_tree_router # Import the research tree router
 
 # If Paper model is needed in main.py for some reason, import it like:
 # from backend.models.paper import Paper
@@ -29,8 +28,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(arxiv_router.router, prefix="/api/arxiv", tags=["arXiv"])
-app.include_router(queries_router.router, prefix="/api/queries", tags=["Queries"])
-app.include_router(papers_router.router, prefix="/api/papers", tags=["Papers"])
+app.include_router(research_tree_router.router, prefix="/api", tags=["Research Tree"])
 
 # Example of how to ensure tables are created using an event handler
 # This is often preferred over calling create_db_and_tables() directly at the module level,
