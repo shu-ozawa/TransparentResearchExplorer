@@ -4,13 +4,21 @@ import google.generativeai as genai
 from google.api_core import exceptions as google_exceptions
 from dotenv import load_dotenv
 
+from typing import Optional
+
 class GeminiClient:
-    def __init__(self):
+    def __init__(self, api_key: Optional[str] = None):
         # .envファイルを読み込む
         load_dotenv()
-        api_key = os.getenv("GEMINI_API_KEY")
+        
         if api_key is None:
-            raise ValueError("GEMINI_API_KEY environment variable not set. Please check your .env file.")
+            api_key = os.getenv("GEMINI_API_KEY")
+        
+        if api_key is None:
+            raise ValueError(
+                "Gemini API key not provided directly or found in GEMINI_API_KEY environment variable. "
+                "Please provide the key directly or set it in your .env file."
+            )
         genai.configure(api_key=api_key)
 
     def generate_text(self, prompt: str) -> str:
@@ -39,4 +47,5 @@ def get_gemini_client() -> GeminiClient:
     FastAPIの依存性注入用のファクトリ関数。
     GeminiClientのインスタンスを返します。
     """
-    return GeminiClient()
+    # Use the provided API key directly
+    return GeminiClient(api_key="AIzaSyA8xL_JFa-tQAZfmDlAYqhQGRtyCFP5Ch0")
