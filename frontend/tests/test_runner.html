@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Test Runner</title>
+    <!-- Include styles if needed for layout checks, though not strictly necessary for logic tests -->
+    <link rel="stylesheet" href="../src/style.css">
+    <style>
+        /* Minimal styles for test runner page if needed */
+        body { font-family: sans-serif; padding: 20px; }
+        .test-results { margin-top: 20px; border: 1px solid #ccc; padding: 10px; }
+        .pass { color: green; }
+        .fail { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Frontend Automated Functional Check</h1>
+    <p>Open the browser console to see detailed test logs. Summary below:</p>
+    <div class="test-results" id="test-results-summary">
+        <p>Running tests...</p>
+    </div>
+
+    <!-- Include the static HTML structure for main.js to interact with -->
+    <div class="container" style="display: none;"> <!-- Hidden, as we only care about JS logic and population -->
+        <div class="header">
+            <h1>AI Research Network</h1>
+            <p class="subtitle">Interactive Analysis of Machine Learning Fairness Literature</p>
+        </div>
+        <div class="stats-overview">
+            <h3 class="stats-title">Research Network Overview</h3>
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-number" id="stat-papers">0</div><div class="stat-label">Papers Retrieved</div></div>
+                <div class="stat-card"><div class="stat-number" id="stat-queries">0</div><div class="stat-label">AI Queries</div></div>
+                <div class="stat-card"><div class="stat-number" id="stat-relevance-peak">0</div><div class="stat-label">Peak Relevance</div></div>
+                <div class="stat-card"><div class="stat-number" id="stat-relevance-mean">0</div><div class="stat-label">Mean Relevance</div></div>
+            </div>
+        </div>
+        <div class="network-container">
+            <h2 class="network-title">AI Research Discovery Network</h2>
+            <div class="network-graph">
+                <svg class="network-svg">
+                    <path id="line-input-query1" class="connection-line" d=""></path>
+                    <path id="line-input-query2" class="connection-line" d=""></path>
+                    <path id="line-query1-paper1" class="connection-line" d=""></path>
+                    <path id="line-query1-paper2" class="connection-line" d=""></path>
+                    <path id="line-query2-paper3" class="connection-line" d=""></path>
+                    <path id="line-query2-paper4" class="connection-line" d=""></path>
+                    <path id="line-q2-p1" class="connection-line" d="" style="opacity: 0.3;"></path>
+                    <path id="line-q1-p3" class="connection-line" d="" style="opacity: 0.3;"></path>
+                </svg>
+                <div class="network-node human-input" id="human-input">
+                    <div class="input-title">🎯 Research Objective</div>
+                    <div class="input-desc">Understanding latest research trends in machine learning fairness</div>
+                </div>
+                <div class="network-node query-node query1" id="query1">
+                    <div class="query-title">📚 AI Query 1: Reviews & Surveys</div>
+                    <div class="query-text"></div>
+                </div>
+                <div class="network-node query-node query2" id="query2">
+                    <div class="query-title">⚙️ AI Query 2: Technical Methods</div>
+                    <div class="query-text"></div>
+                </div>
+                <div class="network-node paper-node paper1" id="paper1" onclick="showPaperDetail('paper1')">
+                    <div class="query-indicator">Q1</div>
+                    <div class="paper-title">Paper Title 1</div>
+                    <div class="paper-authors">Authors 1</div>
+                    <div class="paper-footer"><span class="paper-date">Date 1</span><span class="relevance-badge">0.00</span></div>
+                </div>
+                <div class="network-node paper-node paper2" id="paper2" onclick="showPaperDetail('paper2')">
+                    <div class="query-indicator">Q1</div>
+                    <div class="paper-title">Paper Title 2</div>
+                    <div class="paper-authors">Authors 2</div>
+                    <div class="paper-footer"><span class="paper-date">Date 2</span><span class="relevance-badge">0.00</span></div>
+                </div>
+                <div class="network-node paper-node paper3" id="paper3" onclick="showPaperDetail('paper3')">
+                    <div class="query-indicator q2">Q2</div>
+                    <div class="paper-title">Paper Title 3</div>
+                    <div class="paper-authors">Authors 3</div>
+                    <div class="paper-footer"><span class="paper-date">Date 3</span><span class="relevance-badge">0.00</span></div>
+                </div>
+                <div class="network-node paper-node paper4" id="paper4" onclick="showPaperDetail('paper4')">
+                    <div class="query-indicator q2">Q2</div>
+                    <div class="paper-title">Paper Title 4</div>
+                    <div class="paper-authors">Authors 4</div>
+                    <div class="paper-footer"><span class="paper-date">Date 4</span><span class="relevance-badge">0.00</span></div>
+                </div>
+            </div>
+        </div>
+         <div class="sidebar" id="sidebar"><button class="close-button" onclick="closeSidebar()">×</button><div class="sidebar-content" id="sidebar-content"></div></div>
+    </div>
+
+    <!-- Import scripts -->
+    <!-- apiService.js needs to be loaded first as main.js depends on it -->
+    <script src="../src/apiService.js"></script>
+    <script src="../src/main.js"></script>
+
+    <script>
+        const testResultsSummary = document.getElementById('test-results-summary');
+        let testSummaryHTML = '';
+        let allTestsPassed = true;
+
+        function logTestResult(testName, passed, message = '') {
+            console.log(`${passed ? 'PASS' : 'FAIL'}: ${testName}${message ? ' - ' + message : ''}`);
+            testSummaryHTML += `<p class="${passed ? 'pass' : 'fail'}">${testName}: ${passed ? 'Passed' : 'Failed'} ${message ? '('+message+')' : ''}</p>`;
+            if (!passed) {
+                allTestsPassed = false;
+            }
+        }
+
+        // Mock fetch
+        const mockPaperData = {
+            paper1: { id: 'paper1_api', title: "Mock Paper 1 Title", authors: ["Author A", "Author B"], published: "2023-01-01", abstract: "Abstract 1", score: 0.98, categories: ["cs.AI"], url: "http://example.com/paper1", ai_reasoning: "Reasoning 1", queryMatch: "Mock Query 1" },
+            paper2: { id: 'paper2_api', title: "Mock Paper 2 Title", authors: ["Author C"], published: "2023-02-01", abstract: "Abstract 2", score: 0.95, categories: ["cs.LG"], url: "http://example.com/paper2", ai_reasoning: "Reasoning 2", queryMatch: "Mock Query 1" },
+            paper3: { id: 'paper3_api', title: "Mock Paper 3 Title", authors: ["Author D", "Author E"], published: "2023-03-01", abstract: "Abstract 3", score: 0.92, categories: ["cs.CV"], url: "http://example.com/paper3", ai_reasoning: "Reasoning 3", queryMatch: "Mock Query 2" },
+            paper4: { id: 'paper4_api', title: "Mock Paper 4 Title", authors: ["Author F"], published: "2023-04-01", abstract: "Abstract 4", score: 0.88, categories: ["cs.RO"], url: "http://example.com/paper4", ai_reasoning: "Reasoning 4", queryMatch: "Mock Query 2" },
+        };
+
+        const originalFetch = window.fetch;
+        window.fetch = async (url, options) => {
+            console.log('Mock fetch called for URL:', url);
+            if (url.includes('/api/queries/tree')) {
+                logTestResult("Mock Fetch", true, "apiService.fetchQueryTreeData called");
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        queries: [
+                            { id: "queryId1_mock", name: "Mock Query 1: fairness in AI", display_name: "Mock Query 1", children: [] },
+                            { id: "queryId2_mock", name: "Mock Query 2: bias in ML models", display_name: "Mock Query 2", children: [] }
+                        ]
+                    }),
+                });
+            } else if (url.includes('/api/papers/search')) {
+                const body = JSON.parse(options.body);
+                logTestResult("Mock Fetch", true, `apiService.searchPapers called for query: ${body.query}`);
+                let papersToReturn = [];
+                if (body.query === "Mock Query 1: fairness in AI") {
+                    papersToReturn = [mockPaperData.paper1, mockPaperData.paper2];
+                } else if (body.query === "Mock Query 2: bias in ML models") {
+                    papersToReturn = [mockPaperData.paper3, mockPaperData.paper4];
+                }
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({ papers: papersToReturn }),
+                });
+            }
+            // Fallback to original fetch for other requests if any (e.g. CSS, though unlikely here)
+            return originalFetch(url, options);
+        };
+
+        async function runTests() {
+            console.log('Starting tests...');
+            
+            // Wait for main.js's initializeNetwork to complete (it's async)
+            // initializeNetwork is called on DOMContentLoaded in main.js
+            // We need to ensure it has run. A simple timeout might work for this controlled environment.
+            await new Promise(resolve => setTimeout(resolve, 500)); // Wait for async operations in initializeNetwork
+
+            logTestResult("Test Runner Setup", true, "Mock fetch active, main.js loaded.");
+
+            // Test 1: Check if key HTML elements are populated
+            const humanInputTitle = document.querySelector('#human-input .input-title').textContent;
+            logTestResult("Human Input Populated", humanInputTitle !== '🎯 Research Objective' && humanInputTitle.length > 0, humanInputTitle);
+            
+            const query1Title = document.querySelector('#query1 .query-title').textContent;
+            logTestResult("Query1 Title Populated", query1Title.includes("Mock Query 1"), query1Title);
+            const query1Text = document.querySelector('#query1 .query-text').textContent;
+            logTestResult("Query1 Text Populated", query1Text === "Mock Query 1: fairness in AI", query1Text);
+
+            const query2Title = document.querySelector('#query2 .query-title').textContent;
+            logTestResult("Query2 Title Populated", query2Title.includes("Mock Query 2"), query2Title);
+            const query2Text = document.querySelector('#query2 .query-text').textContent;
+            logTestResult("Query2 Text Populated", query2Text === "Mock Query 2: bias in ML models", query2Text);
+
+            const paper1Title = document.querySelector('#paper1 .paper-title').textContent;
+            logTestResult("Paper1 Title Populated", paper1Title === mockPaperData.paper1.title, paper1Title);
+            const paper1Authors = document.querySelector('#paper1 .paper-authors').textContent;
+            logTestResult("Paper1 Authors Populated", paper1Authors === mockPaperData.paper1.authors.join(', '), paper1Authors);
+
+            const paper4Title = document.querySelector('#paper4 .paper-title').textContent;
+            logTestResult("Paper4 Title Populated", paper4Title === mockPaperData.paper4.title, paper4Title);
+
+            // Test 2: Check networkData.connections (assuming networkData is global in main.js)
+            if (window.networkData && window.networkData.connections) {
+                logTestResult("networkData.connections Populated", window.networkData.connections.length > 0, `Count: ${window.networkData.connections.length}`);
+                // Example specific connection check:
+                const expectedInputToQ1 = window.networkData.connections.find(c => c.from === 'human-input' && c.to === 'queryId1_mock');
+                logTestResult("Connection: Input to Query1", !!expectedInputToQ1, JSON.stringify(expectedInputToQ1));
+                
+                const expectedQ1ToP1 = window.networkData.connections.find(c => c.from === 'queryId1_mock' && c.to === 'paper1_api');
+                logTestResult("Connection: Query1 to Paper1", !!expectedQ1ToP1, JSON.stringify(expectedQ1ToP1));
+
+            } else {
+                logTestResult("networkData.connections Accessibility", false, "networkData or networkData.connections is not globally accessible or not populated.");
+            }
+            
+            // Test 3: Sidebar functionality (basic check)
+            // Need to make paperIdToHtmlId and networkData.papers accessible or mock them appropriately if not global
+             if (window.showPaperDetail && window.paperIdToHtmlId && window.networkData && window.networkData.papers) {
+                // Map mock paper ID to HTML ID for testing
+                window.paperIdToHtmlId[mockPaperData.paper1.id] = 'paper1'; // Ensure this mapping exists for showPaperDetail
+                
+                showPaperDetail('paper1'); // Simulate click
+                await new Promise(resolve => setTimeout(resolve, 100)); // Wait for sidebar to open
+                const sidebar = document.getElementById('sidebar');
+                const sidebarTitle = document.querySelector('#sidebar .detail-title');
+                
+                logTestResult("Sidebar Opens", sidebar.classList.contains('open'), "Sidebar class list: " + sidebar.classList);
+                if (sidebarTitle) {
+                    logTestResult("Sidebar Paper Title Populated", sidebarTitle.textContent === mockPaperData.paper1.title, sidebarTitle.textContent);
+                } else {
+                    logTestResult("Sidebar Paper Title Populated", false, "Sidebar title element not found.");
+                }
+                
+                if(window.closeSidebar) {
+                    closeSidebar(); // Simulate close
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    logTestResult("Sidebar Closes", !sidebar.classList.contains('open'), "Sidebar class list: " + sidebar.classList);
+                } else {
+                     logTestResult("closeSidebar function", false, "closeSidebar not found globally.");
+                }
+
+            } else {
+                logTestResult("showPaperDetail related globals", false, "showPaperDetail, paperIdToHtmlId or networkData.papers not globally accessible.");
+            }
+
+
+            console.log('Tests finished.');
+            testResultsSummary.innerHTML = testSummaryHTML + `<hr><p><strong>Overall: ${allTestsPassed ? 'All Tests Passed' : 'Some Tests Failed'}</strong></p>`;
+            // Restore original fetch
+            window.fetch = originalFetch;
+        }
+
+        // Run tests after DOM is loaded and main.js had a chance to run
+        // main.js's initializeNetwork is also on DOMContentLoaded
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", () => setTimeout(runTests, 200)); // give main.js a little headstart
+        } else {
+            setTimeout(runTests, 200); // Already loaded
+        }
+    </script>
+
+</body>
+</html>

@@ -1,43 +1,154 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <meta
-      name="description"
-      content="Web site created using create-react-app"
-    />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-    <!--
-      manifest.json provides metadata used when your web app is installed on a
-      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-    -->
-    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <!--
-      Notice the use of %PUBLIC_URL% in the tags above.
-      It will be replaced with the URL of the `public` folder during the build.
-      Only files inside the `public` folder can be referenced from the HTML.
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Research Network - Academic Style</title>
+    <link rel="stylesheet" href="../src/style.css"> <!-- Adjusted path to link to style.css in src -->
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI Research Network</h1>
+            <p class="subtitle">Interactive Analysis of Machine Learning Fairness Literature</p>
+        </div>
+        
+        <div class="stats-overview">
+            <h3 class="stats-title">Research Network Overview</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">4</div>
+                    <div class="stat-label">Papers Retrieved</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">2</div>
+                    <div class="stat-label">AI Queries</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">1.00</div>
+                    <div class="stat-label">Peak Relevance</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">0.94</div>
+                    <div class="stat-label">Mean Relevance</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="network-container">
+            <h2 class="network-title">AI Research Discovery Network</h2>
+            
+            <div class="network-graph">
+                <!-- SVG for connections -->
+                <svg class="network-svg">
+                    <!-- Human Input to Queries -->
+                    <path id="line-input-q1" class="connection-line" d=""></path>
+                    <path id="line-input-q2" class="connection-line" d=""></path>
+                    
+                    <!-- Query 1 to Papers -->
+                    <path id="line-q1-p1" class="connection-line" d=""></path>
+                    <path id="line-q1-p2" class="connection-line" d=""></path>
+                    
+                    <!-- Query 2 to Papers -->
+                    <path id="line-q2-p3" class="connection-line" d=""></path>
+                    <path id="line-q2-p4" class="connection-line" d=""></path>
+                    
+                    <!-- Cross connections (some papers relevant to both queries) -->
+                    <path id="line-q2-p1" class="connection-line" d="" style="opacity: 0.3;"></path>
+                    <path id="line-q1-p3" class="connection-line" d="" style="opacity: 0.3;"></path>
+                </svg>
+                
+                <!-- Human Input Node -->
+                <div class="network-node human-input" id="human-input">
+                    <div class="input-title">🎯 Research Objective</div>
+                    <div class="input-desc">Understanding latest research trends in machine learning fairness</div>
+                </div>
+                
+                <!-- Query Nodes -->
+                <div class="network-node query-node query1" id="query1">
+                    <div class="query-title">📚 AI Query 1: Reviews & Surveys</div>
+                    <div class="query-text">
+                        ("machine learning" AND ("fairness" OR "bias" OR "ethical AI")) AND ("survey" OR "review" OR "recent advances")
+                    </div>
+                </div>
+                
+                <div class="network-node query-node query2" id="query2">
+                    <div class="query-title">⚙️ AI Query 2: Technical Methods</div>
+                    <div class="query-text">
+                        "fairness machine learning" AND ("bias mitigation" OR "debiasing" OR "algorithmic fairness")
+                    </div>
+                </div>
+                
+                <!-- Paper Nodes -->
+                <div class="network-node paper-node paper1" id="paper1" onclick="showPaperDetail('paper1')">
+                    <div class="query-indicator">Q1</div>
+                    <div class="paper-title">Unmasking Bias in AI: A Systematic Review of Bias Detection and Mitigation Strategies in EHR-based Models</div>
+                    <div class="paper-authors">Feng Chen, Liqin Wang, Julie Hong, et al.</div>
+                    <div class="paper-footer">
+                        <span class="paper-date">Oct 30, 2023</span>
+                        <span class="relevance-badge high">0.95</span>
+                    </div>
+                </div>
+                
+                <div class="network-node paper-node paper2" id="paper2" onclick="showPaperDetail('paper2')">
+                    <div class="query-indicator">Q1</div>
+                    <div class="paper-title">Beyond Fairness Metrics: Roadblocks and Challenges for Ethical AI in Practice</div>
+                    <div class="paper-authors">Jiahao Chen, Victor Storchan, Eren Kurshan</div>
+                    <div class="paper-footer">
+                        <span class="paper-date">Aug 11, 2021</span>
+                        <span class="relevance-badge medium">0.90</span>
+                    </div>
+                </div>
+                
+                <div class="network-node paper-node paper3" id="paper3" onclick="showPaperDetail('paper3')">
+                    <div class="query-indicator q2">Q2</div>
+                    <div class="paper-title">Poisoning Attacks on Fair Machine Learning</div>
+                    <div class="paper-authors">Minh-Hao Van, Wei Du, Xintao Wu, Aidong Lu</div>
+                    <div class="paper-footer">
+                        <span class="paper-date">Oct 17, 2021</span>
+                        <span class="relevance-badge high">1.00</span>
+                    </div>
+                </div>
+                
+                <div class="network-node paper-node paper4" id="paper4" onclick="showPaperDetail('paper4')">
+                    <div class="query-indicator q2">Q2</div>
+                    <div class="paper-title">When mitigating bias is unfair: multiplicity and arbitrariness in algorithmic group fairness</div>
+                    <div class="paper-authors">Natasa Krco, Thibault Laugel, Vincent Grari, et al.</div>
+                    <div class="paper-footer">
+                        <span class="paper-date">Feb 14, 2023</span>
+                        <span class="relevance-badge medium">0.90</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="legend">
+            <h3 class="legend-title">Network Legend</h3>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <div class="legend-color input"></div>
+                    <span class="legend-text">Research Objective</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color query"></div>
+                    <span class="legend-text">AI-Generated Queries</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color paper"></div>
+                    <span class="legend-text">Retrieved Papers</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="sidebar" id="sidebar">
+        <button class="close-button" onclick="closeSidebar()">×</button>
+        <div class="sidebar-content" id="sidebar-content">
+            <h2>Paper Analysis</h2>
+            <p>Click on any paper in the network to view detailed analysis and AI reasoning.</p>
+        </div>
+    </div>
 
-      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-      work correctly both with client-side routing and a non-root public URL.
-      Learn how to configure a non-root public URL by running `npm run build`.
-    -->
-    <title>React App</title>
-  </head>
-  <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
-    <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
-
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
-
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
-  </body>
+    <script src="../src/main.js"></script> <!-- Adjusted path to link to main.js in src -->
+</body>
 </html>
