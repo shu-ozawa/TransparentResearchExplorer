@@ -35,6 +35,7 @@ const HomePage = () => {
 
       setResearchData(result);
       // Removed logic for allPapers, setSearchResults, setFilteredResults
+
       setSelectedQuery(result.research_goal || query); // Use research_goal if available
     } catch (error) {
       console.error('Search error:', error); // "検索エラー" changed to "Search error"
@@ -60,12 +61,12 @@ const HomePage = () => {
       />
 
       {error && <div className="error-message">{error}</div>}
-
       {!loading && !error && !researchData && (
         <p className="initial-state-message">
           Enter a research topic above to generate and visualize a research network.
         </p>
       )}
+
 
       {researchData?.research_goal && (
         <div className="research-goal">
