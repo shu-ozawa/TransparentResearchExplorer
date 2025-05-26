@@ -24,7 +24,8 @@ GEMINI_API_KEY=your_api_key_here
 
 ### 4. サーバーの起動
 ```bash
-uvicorn app.main:app --reload
+cd root
+uvicorn backend.app.main:app --reload
 ```
 
 バックエンドサーバーは`http://127.0.0.1:8000`で利用可能になります。

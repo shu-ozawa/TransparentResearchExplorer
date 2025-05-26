@@ -1,58 +1,107 @@
 import React from 'react';
-import { Slider, TextField, FormControlLabel, Checkbox } from '@mui/material';
+import PropTypes from 'prop-types';
+import './FilterPanel.css';
 
-const FilterPanel = ({ dateRange, setDateRange, relevanceRange, setRelevanceRange, categories, selectedCategories, setSelectedCategories }) => {
-  const handleCategoryChange = (event) => {
-    const value = event.target.value;
-    if (selectedCategories.includes(value)) {
-      setSelectedCategories(selectedCategories.filter((category) => category !== value));
+const FilterPanel = ({
+  dateRange,
+  setDateRange,
+  relevanceRange,
+  setRelevanceRange,
+  categories,
+  selectedCategories,
+  setSelectedCategories,
+}) => {
+  const handleCategoryToggle = (category) => {
+    if (selectedCategories.includes(category)) {
+      setSelectedCategories(selectedCategories.filter(c => c !== category));
     } else {
-      setSelectedCategories([...selectedCategories, value]);
+      setSelectedCategories([...selectedCategories, category]);
     }
   };
 
   return (
-    <div style={{ padding: '20px', border: '1px solid #ddd', marginBottom: '20px' }}>
-      <h3>Filter Results</h3>
-
-      {/* Date Range Filter */}
-      <div>
-        <p>Date Range:</p>
-        <Slider
-          value={dateRange}
-          onChange={(event, newValue) => setDateRange(newValue)}
-          valueLabelDisplay="auto"
-          min={0}
-          max={100} // Assuming date range in months from now (customize as needed)
-        />
-      </div>
-
-      {/* Relevance Score Filter */}
-      <div>
-        <p>Relevance Score:</p>
-        <Slider
-          value={relevanceRange}
-          onChange={(event, newValue) => setRelevanceRange(newValue)}
-          valueLabelDisplay="auto"
-          min={0}
-          max={5}
-          step={1}
-        />
-      </div>
-
-      {/* Category Filter */}
-      <div>
-        <p>Categories:</p>
-        {categories.map((category, index) => (
-          <FormControlLabel
-            key={index}
-            control={<Checkbox checked={selectedCategories.includes(category)} onChange={handleCategoryChange} value={category} />}
-            label={category}
+    <div className="filter-panel">
+      <h3>検索結果のフィルター</h3>
+      
+      <div className="filter-section">
+        <h4>公開日</h4>
+        <div className="range-inputs">
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={dateRange[0]}
+            onChange={(e) => setDateRange([parseInt(e.target.value), dateRange[1]])}
           />
-        ))}
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={dateRange[1]}
+            onChange={(e) => setDateRange([dateRange[0], parseInt(e.target.value)])}
+          />
+          <div className="range-labels">
+            <span>{dateRange[0]}ヶ月前</span>
+            <span>〜</span>
+            <span>{dateRange[1]}ヶ月前</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="filter-section">
+        <h4>関連性スコア</h4>
+        <div className="range-inputs">
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={relevanceRange[0]}
+            onChange={(e) => setRelevanceRange([parseFloat(e.target.value), relevanceRange[1]])}
+          />
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={relevanceRange[1]}
+            onChange={(e) => setRelevanceRange([relevanceRange[0], parseFloat(e.target.value)])}
+          />
+          <div className="range-labels">
+            <span>{relevanceRange[0].toFixed(2)}</span>
+            <span>〜</span>
+            <span>{relevanceRange[1].toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="filter-section">
+        <h4>カテゴリ</h4>
+        <div className="category-filters">
+          {categories.map(category => (
+            <label key={category} className="category-checkbox">
+              <input
+                type="checkbox"
+                checked={selectedCategories.includes(category)}
+                onChange={() => handleCategoryToggle(category)}
+              />
+              <span>{category}</span>
+            </label>
+          ))}
+        </div>
       </div>
     </div>
   );
+};
+
+FilterPanel.propTypes = {
+  dateRange: PropTypes.arrayOf(PropTypes.number).isRequired,
+  setDateRange: PropTypes.func.isRequired,
+  relevanceRange: PropTypes.arrayOf(PropTypes.number).isRequired,
+  setRelevanceRange: PropTypes.func.isRequired,
+  categories: PropTypes.arrayOf(PropTypes.string).isRequired,
+  selectedCategories: PropTypes.arrayOf(PropTypes.string).isRequired,
+  setSelectedCategories: PropTypes.func.isRequired,
 };
 
 export default FilterPanel;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import QueryInputForm from '../components/QueryInputForm';
 import PaperCardGrid from '../components/PaperCardGrid';
 import apiService from '../services/apiService';
@@ -6,102 +6,77 @@ import QueryTreeVisualizer from '../components/QueryTreeVisualizer';
 import FilterPanel from '../components/FilterPanel';
 
 const HomePage = () => {
-  const [queryTreeData, setQueryTreeData] = useState(null);
+  const [researchData, setResearchData] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
   const [filteredResults, setFilteredResults] = useState([]);
   const [selectedQuery, setSelectedQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleKeywordsSubmit = async (keywords) => {
+  const handleSearch = async (query) => {
+    setLoading(true);
+    setError(null);
     try {
-      setSelectedQuery(keywords); // 選択されたクエリを更新
-      const result = await apiService.generateQuery(keywords);
-      console.log('Generated queries:', result);
+      const result = await apiService.searchResearchTree(query);
+      console.log('Research tree search results:', result);
 
-      // Update state with query tree data
-      if (result.related_queries && Array.isArray(result.related_queries)) {
-        setQueryTreeData({
-          name: result.original_query,
-          children: result.related_queries.map(q => ({
-            name: q.query,
-            children: [] // 必要に応じて子ノードを追加
-          }))
-        });
-      }
+      setResearchData(result);
+      
+      // 論文データを整形
+      const allPapers = result.query_nodes.flatMap(node => 
+        node.papers.map(paper => ({
+          ...paper,
+          queryContext: node.description,
+          relevanceScore: paper.relevance_score,
+          date: new Date(paper.published_date).toLocaleDateString()
+        }))
+      );
 
-      // 自動的に論文検索を実行
-      await handleQuerySelect(keywords);
+      setSearchResults(allPapers);
+      setFilteredResults(allPapers);
+      setSelectedQuery(query);
     } catch (error) {
-      console.error('Error generating query:', error);
-      alert(`Failed to generate query: ${error.message}`);
+      console.error('検索エラー:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   // Filtering state
   const [dateRange, setDateRange] = useState([0, 100]);
-  const [relevanceRange, setRelevanceRange] = useState([0, 5]);
-  const categories = ['cs.AI', 'cs.LG', 'stat.ML', 'physics.hep-th'];
+  const [relevanceRange, setRelevanceRange] = useState([0, 1]);
   const [selectedCategories, setSelectedCategories] = useState([]);
 
   const applyFilters = useCallback((results) => {
+    if (!results) return;
+    
     let filtered = results;
 
-    // Filter by date range (assuming months from now)
+    // Filter by date range
     filtered = filtered.filter(paper => {
-      const paperDate = new Date(paper.date);
+      const paperDate = new Date(paper.published_date);
       const today = new Date();
       const monthsDiff = (today.getFullYear() - paperDate.getFullYear()) * 12 +
-                         (today.getMonth() - paperDate.getMonth());
+                       (today.getMonth() - paperDate.getMonth());
       return monthsDiff >= dateRange[0] && monthsDiff <= dateRange[1];
     });
 
     // Filter by relevance score
     filtered = filtered.filter(paper =>
-      paper.relevanceScore >= relevanceRange[0] &&
-      paper.relevanceScore <= relevanceRange[1]
+      paper.relevance_score >= relevanceRange[0] &&
+      paper.relevance_score <= relevanceRange[1]
     );
 
     // Filter by selected categories
     if (selectedCategories.length > 0) {
       filtered = filtered.filter(paper =>
-        selectedCategories.some(category => paper.categories.includes(category))
+        paper.categories.some(category => selectedCategories.includes(category))
       );
     }
 
     setFilteredResults(filtered);
   }, [dateRange, relevanceRange, selectedCategories]);
-
-  const handleQuerySelect = async (query) => {
-    setSelectedQuery(query);
-    try {
-      const results = await apiService.searchPapers(query);
-      console.log('Search results:', results);
-
-      // Format the search results for display
-      const formattedResults = results.map(paper => ({
-        title: paper.title,
-        authors: paper.authors,
-        date: new Date(paper.published).toLocaleDateString(),
-        abstract: paper.abstract,
-        relevanceScore: paper.relevance_score,
-        categories: paper.categories || [],
-      }));
-
-      setSearchResults(formattedResults);
-      applyFilters(formattedResults);
-    } catch (error) {
-      console.error('Error searching papers:', error);
-      alert(`Failed to search papers: ${error.message}`);
-    }
-  };
-
-  const loadQueryTreeData = async () => {
-    try {
-      const data = await apiService.fetchQueryTreeData();
-      setQueryTreeData(data);
-    } catch (error) {
-      console.error('Error fetching query tree data:', error);
-    }
-  };
 
   useEffect(() => {
     if (searchResults.length > 0) {
@@ -109,28 +84,53 @@ const HomePage = () => {
     }
   }, [searchResults, applyFilters]);
 
+  // 利用可能なカテゴリを動的に取得
+  const categories = useMemo(() => {
+    if (!searchResults.length) return [];
+    return [...new Set(searchResults.flatMap(paper => paper.categories))];
+  }, [searchResults]);
+
   return (
-    <div>
+    <div className="home-page">
       <h1>Transparent Research Explorer</h1>
 
-      {/* 統合された検索フォーム */}
+      {/* 検索フォーム */}
       <QueryInputForm 
-        onSubmit={handleKeywordsSubmit}
+        onSubmit={handleSearch}
         initialValue={selectedQuery}
+        loading={loading}
       />
 
-      {/* Query Tree Visualizer with clickable queries */}
-      {queryTreeData && (
-        <>
-          <button onClick={loadQueryTreeData}>Reload Query Tree</button>
-          <QueryTreeVisualizer
-            data={queryTreeData}
-            onQuerySelect={handleQuerySelect}
-          />
-        </>
+      {/* エラー表示 */}
+      {error && (
+        <div className="error-message">
+          {error}
+        </div>
       )}
 
-      {/* Filter panel */}
+      {/* 研究目標の表示 */}
+      {researchData?.research_goal && (
+        <div className="research-goal">
+          <h2>研究目標:</h2>
+          <p>{researchData.research_goal}</p>
+        </div>
+      )}
+
+      {/* Query Tree Visualizer */}
+      {researchData?.query_nodes && (
+        <QueryTreeVisualizer
+          data={{
+            name: selectedQuery,
+            children: researchData.query_nodes.map(node => ({
+              name: node.query,
+              description: node.description,
+              papers: node.papers
+            }))
+          }}
+        />
+      )}
+
+      {/* フィルターパネル */}
       {searchResults.length > 0 && (
         <FilterPanel
           dateRange={dateRange}
@@ -143,14 +143,20 @@ const HomePage = () => {
         />
       )}
 
-      {/* Paper results grid */}
-      {filteredResults.length > 0 ? (
-        <>
-          <h2>Search Results for "{selectedQuery}"</h2>
-          <PaperCardGrid papers={filteredResults} query={selectedQuery} />
-        </>
+      {/* 検索結果の表示 */}
+      {loading ? (
+        <div className="loading">検索中...</div>
       ) : (
-        searchResults.length > 0 && <p>No results match the selected filters.</p>
+        <>
+          {filteredResults.length > 0 ? (
+            <>
+              <h2>検索結果: {filteredResults.length}件</h2>
+              <PaperCardGrid papers={filteredResults} />
+            </>
+          ) : (
+            searchResults.length > 0 && <p>選択されたフィルタに一致する結果がありません。</p>
+          )}
+        </>
       )}
     </div>
   );

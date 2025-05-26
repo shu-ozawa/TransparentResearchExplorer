@@ -56,11 +56,12 @@ async def _generate_research_plan(natural_query: str, client: GeminiClient, max_
         f"Please provide:\n"
         f"1. Research Goal: A clear statement of what the user wants to understand\n"
         f"2. Search Queries: Up to {max_queries} different search queries to comprehensively explore this topic. Each query should be followed by a brief description of what it focuses on.\n\n"
+        f"IMPORTANT: Always generate search queries in English, even if the research question is in another language. This is crucial for searching academic papers.\n\n"
         f"Format your response EXACTLY as follows, including the labels 'Research Goal:', 'Search Queries:', and the numbering for queries:\n"
         f"Research Goal: [Your clear research objective here]\n\n"
         f"Search Queries:\n"
-        f"1. Query: [search terms 1] | Description: [description for query 1]\n"
-        f"2. Query: [search terms 2] | Description: [description for query 2]\n"
+        f"1. Query: [search terms 1 in English] | Description: [description for query 1]\n"
+        f"2. Query: [search terms 2 in English] | Description: [description for query 2]\n"
         f"...\n"
     )
     

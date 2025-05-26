@@ -47,5 +47,4 @@ def get_gemini_client() -> GeminiClient:
     FastAPIの依存性注入用のファクトリ関数。
     GeminiClientのインスタンスを返します。
     """
-    # Use the provided API key directly
-    return GeminiClient(api_key="AIzaSyA8xL_JFa-tQAZfmDlAYqhQGRtyCFP5Ch0")
+    return GeminiClient()  # APIキーは__init__で環境変数から読み込まれます
