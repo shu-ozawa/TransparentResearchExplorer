@@ -4,14 +4,28 @@ import PaperCardGrid from '../components/PaperCardGrid';
 import apiService from '../services/apiService';
 import QueryTreeVisualizer from '../components/QueryTreeVisualizer';
 import FilterPanel from '../components/FilterPanel';
+import PaperDetailSidebar from '../components/PaperDetailSidebar'; // Import the sidebar
 
 const HomePage = () => {
   const [researchData, setResearchData] = useState(null);
+  const [selectedPaperForSidebar, setSelectedPaperForSidebar] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [filteredResults, setFilteredResults] = useState([]);
   const [selectedQuery, setSelectedQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const handlePaperNodeClick = (paperData) => {
+    setSelectedPaperForSidebar(paperData);
+    setIsSidebarOpen(true);
+  };
+
+  const handleCloseSidebar = () => {
+    setIsSidebarOpen(false);
+    // Optionally delay setting paper to null for animation:
+    // setTimeout(() => setSelectedPaperForSidebar(null), 300); // Adjust delay to match CSS transition
+  };
 
   const handleSearch = async (query) => {
     setLoading(true);
@@ -26,15 +40,16 @@ const HomePage = () => {
       const allPapers = result.query_nodes.flatMap(node => 
         node.papers.map(paper => ({
           ...paper,
-          queryContext: node.description,
-          relevanceScore: paper.relevance_score,
-          date: new Date(paper.published_date).toLocaleDateString()
+          queryContext: node.description, // Keep context if needed by PaperCardGrid
+          // Ensure all fields required by PaperDetailSidebar are present
+          // relevanceScore: paper.relevance_score, // already in paper
+          // date: new Date(paper.published_date).toLocaleDateString() // PaperDetailSidebar will format date
         }))
       );
 
       setSearchResults(allPapers);
-      setFilteredResults(allPapers);
-      setSelectedQuery(query);
+      setFilteredResults(allPapers); // Apply initial filters or show all
+      setSelectedQuery(result.research_goal || query); // Use research_goal if available
     } catch (error) {
       console.error('検索エラー:', error);
       setError(error.message);
@@ -94,43 +109,28 @@ const HomePage = () => {
     <div className="home-page">
       <h1>Transparent Research Explorer</h1>
 
-      {/* 検索フォーム */}
       <QueryInputForm 
         onSubmit={handleSearch}
-        initialValue={selectedQuery}
+        initialValue={selectedQuery} // This should be researchData.research_goal ideally
         loading={loading}
       />
 
-      {/* エラー表示 */}
-      {error && (
-        <div className="error-message">
-          {error}
-        </div>
-      )}
+      {error && <div className="error-message">{error}</div>}
 
-      {/* 研究目標の表示 */}
       {researchData?.research_goal && (
         <div className="research-goal">
-          <h2>研究目標:</h2>
+          <h2>Research Goal:</h2>
           <p>{researchData.research_goal}</p>
         </div>
       )}
 
-      {/* Query Tree Visualizer */}
-      {researchData?.query_nodes && (
+      {researchData && (
         <QueryTreeVisualizer
-          data={{
-            name: selectedQuery,
-            children: researchData.query_nodes.map(node => ({
-              name: node.query,
-              description: node.description,
-              papers: node.papers
-            }))
-          }}
+          researchData={researchData} // Pass the full researchData object
+          onPaperNodeClick={handlePaperNodeClick} // Pass the click handler
         />
       )}
 
-      {/* フィルターパネル */}
       {searchResults.length > 0 && (
         <FilterPanel
           dateRange={dateRange}
@@ -143,21 +143,26 @@ const HomePage = () => {
         />
       )}
 
-      {/* 検索結果の表示 */}
       {loading ? (
-        <div className="loading">検索中...</div>
+        <div className="loading">Searching...</div>
       ) : (
         <>
           {filteredResults.length > 0 ? (
             <>
-              <h2>検索結果: {filteredResults.length}件</h2>
+              <h2>Search Results: {filteredResults.length} papers</h2>
               <PaperCardGrid papers={filteredResults} />
             </>
           ) : (
-            searchResults.length > 0 && <p>選択されたフィルタに一致する結果がありません。</p>
+            searchResults.length > 0 && <p>No results match the selected filters.</p>
           )}
         </>
       )}
+
+      <PaperDetailSidebar
+        paper={selectedPaperForSidebar}
+        isOpen={isSidebarOpen}
+        onClose={handleCloseSidebar}
+      />
     </div>
   );
 };
