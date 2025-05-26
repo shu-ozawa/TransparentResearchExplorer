@@ -14,6 +14,13 @@ const HomePage = () => {
   const [selectedQuery, setSelectedQuery] = useState(''); // Retained for QueryInputForm initial value
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // 進捗インジケーター用
+  const [progress, setProgress] = useState({
+    phase: '', // '', 'generating', 'searching', 'done'
+    current: 0,
+    total: 0,
+    queries: [] // [{query, status: 'pending'|'searching'|'done'|'error'}]
+  });
 
   const handlePaperNodeClick = (paperData) => {
     setSelectedPaperForSidebar(paperData);
@@ -26,20 +33,72 @@ const HomePage = () => {
     // setTimeout(() => setSelectedPaperForSidebar(null), 300);
   };
 
-  const handleSearch = async (query) => {
+  const handleSearch = async (query, maxResults = 5, maxQueries = 5) => {
     setLoading(true);
     setError(null);
+    setResearchData(null);
+    setSelectedQuery(query);
+    setProgress({ phase: 'generating', current: 0, total: 0, queries: [] });
+    let tempData = {
+      original_query: query,
+      research_goal: '',
+      query_nodes: [],
+      total_papers: 0,
+      total_unique_papers: 0
+    };
+    const uniqueArxivIds = new Set();
     try {
-      const result = await apiService.searchResearchTree(query);
-      console.log('Research tree search results:', result);
-
-      setResearchData(result);
-      // Removed logic for allPapers, setSearchResults, setFilteredResults
-
-      setSelectedQuery(result.research_goal || query); // Use research_goal if available
-    } catch (error) {
-      console.error('Search error:', error); // "検索エラー" changed to "Search error"
-      setError(error.message);
+      await apiService.searchResearchTreeStream(
+        query,
+        (data) => {
+          if (data.type === 'queries') {
+            tempData.research_goal = data.research_goal;
+            tempData.query_nodes = [];
+            setResearchData({ ...tempData });
+            setProgress({
+              phase: 'searching',
+              current: 0,
+              total: data.queries.length,
+              queries: data.queries.map(q => ({ query: q.query, status: 'pending' }))
+            });
+          } else if (data.type === 'papers') {
+            // クエリごとの論文リストを追加
+            tempData.query_nodes.push({
+              query: data.query,
+              description: data.description,
+              papers: data.papers,
+              paper_count: data.papers.length
+            });
+            // 論文数集計
+            tempData.total_papers += data.papers.length;
+            data.papers.forEach(p => uniqueArxivIds.add(p.arxiv_id));
+            tempData.total_unique_papers = uniqueArxivIds.size;
+            setResearchData({ ...tempData });
+            // 進捗更新
+            setProgress(prev => {
+              const idx = prev.queries.findIndex(q => q.query === data.query);
+              if (idx !== -1) {
+                const newQueries = [...prev.queries];
+                newQueries[idx] = {
+                  ...newQueries[idx],
+                  status: data.error ? 'error' : 'done'
+                };
+                return {
+                  ...prev,
+                  current: prev.current + 1,
+                  queries: newQueries,
+                  phase: prev.current + 1 === prev.total ? 'done' : prev.phase
+                };
+              }
+              return prev;
+            });
+          }
+        },
+        maxResults,
+        maxQueries
+      );
+    } catch (err) {
+      setError(err.message || '検索中にエラーが発生しました');
     } finally {
       setLoading(false);
     }
@@ -50,6 +109,31 @@ const HomePage = () => {
   // Removed useEffect for applyFilters
   // Removed useMemo for categories
 
+  // 進捗インジケーターUI
+  const renderProgress = () => {
+    if (progress.phase === 'generating') {
+      return <div className="progress-indicator">Generating queries...</div>;
+    }
+    if (progress.phase === 'searching') {
+      return (
+        <div className="progress-indicator">
+          Searching: {progress.current} / {progress.total}
+          <ul style={{margin: '0.5em 0 0 1.5em', padding: 0}}>
+            {progress.queries.map((q, i) => (
+              <li key={i} style={{color: q.status === 'done' ? 'green' : q.status === 'error' ? 'red' : 'black'}}>
+                {q.query} : {q.status === 'pending' ? 'Pending' : q.status === 'searching' ? 'Searching' : q.status === 'done' ? 'Done' : 'Error'}
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+    }
+    if (progress.phase === 'done' && progress.total > 0) {
+      return <div className="progress-indicator">All searches completed</div>;
+    }
+    return null;
+  };
+
   return (
     <div className="home-page">
       <h1>Transparent Research Explorer</h1>
@@ -59,6 +143,8 @@ const HomePage = () => {
         initialValue={selectedQuery} 
         loading={loading}
       />
+
+      {renderProgress()}
 
       {error && <div className="error-message">{error}</div>}
       {!loading && !error && !researchData && (

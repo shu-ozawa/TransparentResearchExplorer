@@ -4,6 +4,9 @@ import logging
 import re
 from typing import List, Optional
 from datetime import datetime
+from fastapi.responses import StreamingResponse
+import asyncio
+import json
 
 from backend.app.clients.gemini_client import GeminiClient, get_gemini_client
 from backend.api.arxiv_client import ArxivAPIClient, get_arxiv_client
@@ -54,6 +57,13 @@ async def _generate_research_plan(natural_query: str, client: GeminiClient, max_
         f"You are a research assistant. Your task is to break down the following research topic into a list of specific search queries for academic paper databases.\n\n"
         f"Please generate up to {max_queries} distinct search queries, each exploring a different facet or angle of the research topic. Each query should be designed to find relevant academic papers and should be accompanied by a brief description of its focus.\n"
         f"IMPORTANT: Always generate search queries in English, even if the research topic is in another language. This is crucial for searching academic papers.\n\n"
+        f"---\n"
+        f"Additional Instructions:\n"
+        f"- Always include general and representative keywords related to the topic (e.g., 'machine learning', 'deep learning', 'LLM', etc.) in your queries, even if the topic is specific.\n"
+        f"- Combine multiple general terms using OR to broaden the search and ensure that each query will likely return more than 10 papers.\n"
+        f"- Prioritize query design that will result in a large number of hits, rather than being too specific.\n"
+        f"- Assume that the user will read the most recent papers first, so queries should not be limited by publication year.\n"
+        f"---\n\n"
         f"Format your response EXACTLY as follows, including the numbering for queries:\n"
         f"Search Queries:\n"
         f"1. Query: [search terms 1 in English] | Description: [description for query 1]\n"
@@ -63,12 +73,12 @@ async def _generate_research_plan(natural_query: str, client: GeminiClient, max_
         f"Research Topic: Explore the benefits and challenges of using TypeScript in large-scale front-end applications.\n"
         f"Search Queries:\n"
         f"1. Query: \"TypeScript large-scale applications benefits\" OR \"enterprise TypeScript advantages\" | Description: Focuses on the general benefits and advantages of using TypeScript in developing large front-end applications.\n"
-        f"2. Query: \"TypeScript challenges large projects OR \"TypeScript adoption hurdles enterprise\" | Description: Investigates the difficulties and obstacles encountered when implementing TypeScript in substantial or enterprise-level projects.\n"
+        f"2. Query: \"TypeScript challenges large projects\" OR \"TypeScript adoption hurdles enterprise\" | Description: Investigates the difficulties and obstacles encountered when implementing TypeScript in substantial or enterprise-level projects.\n"
         f"3. Query: \"TypeScript performance impact large frontend\" OR \"TypeScript scalability front-end metrics\" | Description: Examines the performance implications and scalability aspects of TypeScript in the context of large-scale front-end development.\n\n"
         f"Research Topic: The impact of renewable energy sources on grid stability.\n"
         f"Search Queries:\n"
-        f"1. Query: \"renewable energy grid stability challenges\" OR \"intermittent renewables grid integration issues\" | Description: Identifies challenges and issues related to integrating renewable energy sources into the power grid due to their intermittent nature.\n"
-        f"2. Query: \"grid stability solutions renewable energy\" OR \"mitigation techniques renewable intermittency\" | Description: Explores solutions and techniques to maintain grid stability while incorporating a high penetration of renewable energy sources.\n\n"
+        f"1. Query: \"renewable energy\" OR \"grid stability\" OR \"intermittent renewables\" | Description: Identifies challenges and issues related to integrating renewable energy sources into the power grid due to their intermittent nature.\n"
+        f"2. Query: \"grid stability solutions\" OR \"renewable energy\" OR \"mitigation techniques\" | Description: Explores solutions and techniques to maintain grid stability while incorporating a high penetration of renewable energy sources.\n\n"
         f"Now, please provide the search queries for the following research topic:\n"
         f"Research Topic: {natural_query}\n"
     )
@@ -281,6 +291,66 @@ async def research_tree_search(
     except Exception as e:
         logger.error(f"Error in research tree search: {e}")
         raise HTTPException(status_code=500, detail=f"Research tree search failed: {str(e)}")
+
+@router.post("/research-tree/stream", summary="Multi-query research with streaming response")
+async def research_tree_stream(
+    request: ResearchTreeRequest,
+    gemini_client: GeminiClient = Depends(get_gemini_client),
+    arxiv_client: ArxivAPIClient = Depends(get_arxiv_client)
+):
+    """
+    クエリ生成→即返却→各クエリごとに論文検索→都度返却（ストリーミング）
+    """
+    async def event_stream():
+        # Step 1: クエリ生成
+        research_goal, query_plans = await _generate_research_plan(
+            request.natural_language_query,
+            gemini_client,
+            request.max_queries
+        )
+        # クエリ生成結果をまず送信
+        yield f"data: {json.dumps({'type': 'queries', 'original_query': request.natural_language_query, 'research_goal': research_goal, 'queries': [{'query': q, 'description': d} for q, d in query_plans]})}\n\n"
+        await asyncio.sleep(0.05)
+
+        # Step 2: 各クエリで検索実行
+        for query_text, description in query_plans:
+            try:
+                arxiv_results = await arxiv_client.search_papers(
+                    keyword=query_text,
+                    max_results=request.max_results_per_query
+                )
+                scored_papers = []
+                for result in arxiv_results:
+                    authors = [author.name for author in result.authors]
+                    score, explanation = await _calculate_relevance_score(
+                        title=result.title,
+                        authors=authors,
+                        abstract=result.summary or "",
+                        original_query=request.natural_language_query,
+                        client=gemini_client
+                    )
+                    scored_paper = {
+                        'title': result.title,
+                        'authors': authors,
+                        'abstract': result.summary or "",
+                        'published_date': result.published.isoformat() if hasattr(result.published, 'isoformat') else str(result.published),
+                        'url': result.pdf_url,
+                        'categories': result.categories,
+                        'arxiv_id': result.entry_id.split('/')[-1],
+                        'relevance_score': score,
+                        'relevance_explanation': explanation
+                    }
+                    scored_papers.append(scored_paper)
+                scored_papers.sort(key=lambda x: x['relevance_score'], reverse=True)
+                # クエリごとの論文リストを送信
+                yield f"data: {json.dumps({'type': 'papers', 'query': query_text, 'description': description, 'papers': scored_papers})}\n\n"
+                await asyncio.sleep(0.05)
+            except Exception as e:
+                # エラー時も空リストで送信
+                yield f"data: {json.dumps({'type': 'papers', 'query': query_text, 'description': description, 'papers': [], 'error': str(e)})}\n\n"
+                await asyncio.sleep(0.05)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 # === Optional: 統計情報取得エンドポイント ===
 @router.get("/research-stats", summary="Get research statistics")

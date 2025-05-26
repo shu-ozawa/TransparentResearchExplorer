@@ -53,6 +53,18 @@ const QueryTreeVisualizer = ({ researchData, onPaperNodeClick }) => {
     };
   }, [researchData]);
 
+  // 論文ごとの参照クエリ数（線の本数）を計算
+  const paperConnectionCount = useMemo(() => {
+    if (!researchData || !researchData.query_nodes) return {};
+    const countMap = {};
+    researchData.query_nodes.forEach((node) => {
+      node.papers.forEach((paper) => {
+        countMap[paper.arxiv_id] = (countMap[paper.arxiv_id] || 0) + 1;
+      });
+    });
+    return countMap;
+  }, [researchData]);
+
   const getElementCenter = (elementId, svgContainerRef) => {
     const element = document.getElementById(elementId);
     const svgElement = svgContainerRef.current;
@@ -180,7 +192,7 @@ const QueryTreeVisualizer = ({ researchData, onPaperNodeClick }) => {
       </div>
 
       {/* Network Graph */}
-      <div className="network-graph">
+      <div className="network-graph" style={{ position: 'relative', minHeight: 600 }}>
         <svg
           ref={svgRef}
           className="network-svg"
@@ -234,18 +246,27 @@ const QueryTreeVisualizer = ({ researchData, onPaperNodeClick }) => {
           })}
         </svg>
 
-        {/* Research Goal Node */}
+        {/* Research Goal Node: 上部中央に絶対配置 */}
         <div
           id={goalNodeDomId}
           className={`network-node human-input ${activeNodeIds.includes(goalNodeDomId) ? 'active' : ''}`}
           onMouseEnter={() => handleNodeMouseEnter(goalNodeDomId, 'goal')}
           onMouseLeave={handleNodeMouseLeave}
+          style={{
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            top: '-150px',
+            zIndex: 3,
+            minWidth: 320,
+            maxWidth: 480
+          }}
         >
           <div className="input-title">{researchData.research_goal}</div>
         </div>
 
-        {/* Query Nodes */}
-        <div className="query-nodes-container" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '32px', marginTop: '50px', marginBottom: '50px' }}>
+        {/* Query Nodes: 目標ノードの下に横並びで配置 */}
+        <div className="query-nodes-container" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '32px', marginTop: 220, marginBottom: '50px', position: 'relative', zIndex: 2 }}>
           {researchData.query_nodes.map((node, index) => {
             const queryNodeDomId = `query-node-${index}`;
             return (
@@ -268,18 +289,60 @@ const QueryTreeVisualizer = ({ researchData, onPaperNodeClick }) => {
         <div className="paper-nodes-container" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '20px' }}>
           {uniquePapers.map((paper, index) => {
             const paperNodeDomId = `paper-${paper.arxiv_id}`;
+            const connCount = paperConnectionCount[paper.arxiv_id] || 0;
+            // スコア色分け
+            let scoreColor = '#aaa';
+            if (typeof paper.relevance_score === 'number') {
+              if (paper.relevance_score >= 0.95) scoreColor = '#2ecc40'; // 緑
+              else if (paper.relevance_score >= 0.85) scoreColor = '#ffdc00'; // 黄
+              else scoreColor = '#ff4136'; // 赤
+            }
             return (
               <div
                 key={paper.arxiv_id}
                 id={paperNodeDomId}
                 data-id={paper.arxiv_id}
                 className={`network-node paper-node paper${index + 1} ${activeNodeIds.includes(paperNodeDomId) ? 'active' : ''}`}
-                style={{ position: 'static', minWidth: 280, maxWidth: 400, flex: '1 1 320px' }}
+                style={{ position: 'static', minWidth: 280, maxWidth: 400, flex: '1 1 320px', position: 'relative' }}
                 onMouseEnter={() => handleNodeMouseEnter(paperNodeDomId, 'paper')}
                 onMouseLeave={handleNodeMouseLeave}
                 onClick={() => onPaperNodeClick && onPaperNodeClick(paper)}
               >
-                <div className="paper-title">{paper.title}</div>
+                {/* バッジ表示 */}
+                <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: '8px', zIndex: 2 }}>
+                  {/* スコアバッジ */}
+                  {typeof paper.relevance_score === 'number' && (
+                    <span style={{
+                      background: scoreColor,
+                      color: '#fff',
+                      borderRadius: '12px',
+                      padding: '2px 10px',
+                      fontWeight: 'bold',
+                      fontSize: '1em',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+                    }}
+                      title={`目標に対する関連スコア: ${paper.relevance_score.toFixed(2)}`}
+                    >
+                      {paper.relevance_score.toFixed(2)}
+                    </span>
+                  )}
+                  {/* 線の本数バッジ */}
+                  <span style={{
+                    background: '#0074d9',
+                    color: '#fff',
+                    borderRadius: '12px',
+                    padding: '2px 8px',
+                    fontWeight: 'bold',
+                    fontSize: '0.95em',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+                  }}
+                    title={`This paper is connected to ${connCount} queries`}
+                  >
+                    {connCount} connection{connCount !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                {/* タイトルとバッジが重ならないように下に余白を追加 */}
+                <div className="paper-title" style={{marginTop: 32, minHeight: 48}}>{paper.title}</div>
                 <div className="paper-authors">{paper.authors.join(', ')}</div>
                 <div className="paper-footer">
                   <span className="paper-date">{paper.published_date}</span>

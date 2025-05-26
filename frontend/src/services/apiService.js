@@ -108,6 +108,57 @@ const apiService = {
       console.error('Error in searchResearchTree:', error);
       throw error;
     }
+  },
+
+  /**
+   * ストリーミングAPIで逐次データを受信する
+   * @param {string} naturalLanguageQuery
+   * @param {function} onMessage - 各データ受信時に呼ばれるコールバック
+   * @param {number} maxResultsPerQuery
+   * @param {number} maxQueries
+   * @returns {Promise<void>} 完了時にresolve
+   */
+  searchResearchTreeStream: async (
+    naturalLanguageQuery,
+    onMessage,
+    maxResultsPerQuery = 5,
+    maxQueries = 5
+  ) => {
+    const response = await fetch(`${BASE_URL}/api/research-tree/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        natural_language_query: naturalLanguageQuery,
+        max_results_per_query: maxResultsPerQuery,
+        max_queries: maxQueries
+      }),
+    });
+    if (!response.ok || !response.body) {
+      throw new Error('ストリーミングAPIの接続に失敗しました');
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let lines = buffer.split('\n\n');
+      buffer = lines.pop(); // 最後は未完了の可能性
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const jsonStr = line.slice(6);
+            const data = JSON.parse(jsonStr);
+            onMessage(data);
+          } catch (e) {
+            console.error('ストリーミングデータのパースエラー', e, line);
+          }
+        }
+      }
+    }
   }
 };
 
