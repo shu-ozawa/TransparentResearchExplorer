@@ -29,3 +29,6 @@ pytest-mock
 
 # Python dotenv
 python-dotenv
+
+# OpenAI API client
+openai

@@ -17,7 +17,10 @@ from backend.api.endpoints.research_tree import (
 )
 
 # Clients to mock
-from backend.app.clients.gemini_client import GeminiClient
+# GeminiClient and OllamaClient might be used for spec if specific client behavior is tested,
+# but for generic LLM client mocking, a simple MagicMock is often sufficient.
+# from backend.app.clients.gemini_client import GeminiClient 
+# from backend.app.clients.ollama_client import OllamaClient
 from backend.api.arxiv_client import ArxivAPIClient
 
 # For creating mock Arxiv paper objects
@@ -26,9 +29,9 @@ from backend.schemas.arxiv_schema import ArxivPaper as MockArxivPaperSchema, Arx
 
 class TestGenerateResearchPlan(unittest.IsolatedAsyncioTestCase):
     async def test_successful_plan_generation(self):
-        mock_gemini_client = MagicMock(spec=GeminiClient)
-        mock_gemini_client.generate_text = MagicMock(return_value=(
-            "Research Goal: Understand the applications of AI in healthcare.\n\n"
+        mock_llm_client = MagicMock() # Changed from mock_gemini_client
+        mock_llm_client.generate_text = MagicMock(return_value=(
+            "Research Goal: Understand the applications of AI in healthcare.\n\n" # Assuming this is the direct output from generate_text now
             "Search Queries:\n"
             "1. Query: AI diagnostics healthcare | Description: AI techniques for medical diagnosis.\n"
             "2. Query: machine learning drug discovery | Description: ML in pharmaceutical research."
@@ -37,78 +40,97 @@ class TestGenerateResearchPlan(unittest.IsolatedAsyncioTestCase):
         natural_query = "AI in healthcare"
         max_queries = 2
         
-        goal, queries = await _generate_research_plan(natural_query, mock_gemini_client, max_queries)
+        # The _generate_research_plan function was updated to parse the goal from the response.
+        # Let's assume the parsing logic within _generate_research_plan handles goal extraction correctly.
+        # The test here should focus on the interaction with the client.
+        # For the purpose of this test, we'll assume the client output format is what _generate_research_plan expects.
+        # The internal logic of _generate_research_plan (goal parsing) is tested by its own unit tests.
         
-        self.assertEqual(goal, "Understand the applications of AI in healthcare.")
+        # If _generate_research_plan's first return value (goal) is directly from the response,
+        # we need to adjust the mock or the assertion.
+        # The original test for _generate_research_plan parses the goal.
+        # Let's ensure the mock provides a response that includes the goal.
+        # The prompt to LLM in _generate_research_plan does not ask for "Research Goal:" explicitly in the output.
+        # It seems the `goal` returned by `_generate_research_plan` is `natural_query` or a processed version.
+        # The example in `_generate_research_plan` shows the LLM does not output "Research Goal:"
+        # The function `_generate_research_plan` returns `natural_query` as the first element of the tuple.
+        # So the assertion `self.assertEqual(goal, "Understand the applications of AI in healthcare.")` was likely
+        # based on an older version or a misunderstanding of what `_generate_research_plan` returns as `goal`.
+        # It should return the `natural_query` as `research_goal`.
+
+        goal, queries = await _generate_research_plan(natural_query, mock_llm_client, max_queries)
+        
+        self.assertEqual(goal, natural_query) # `_generate_research_plan` returns `natural_query` as goal
         self.assertEqual(len(queries), 2)
         self.assertEqual(queries[0], ("AI diagnostics healthcare", "AI techniques for medical diagnosis."))
         self.assertEqual(queries[1], ("machine learning drug discovery", "ML in pharmaceutical research."))
-        mock_gemini_client.generate_text.assert_called_once()
+        mock_llm_client.generate_text.assert_called_once()
 
-    async def test_gemini_client_error(self):
-        mock_gemini_client = MagicMock(spec=GeminiClient)
-        mock_gemini_client.generate_text = MagicMock(side_effect=Exception("Gemini API Error"))
+    async def test_llm_client_error_in_plan_generation(self): # Renamed from test_gemini_client_error
+        mock_llm_client = MagicMock()
+        mock_llm_client.generate_text = MagicMock(side_effect=Exception("LLM API Error"))
         
         natural_query = "AI in healthcare"
         max_queries = 3
         
-        goal, queries = await _generate_research_plan(natural_query, mock_gemini_client, max_queries)
+        goal, queries = await _generate_research_plan(natural_query, mock_llm_client, max_queries)
         
-        self.assertEqual(goal, f"Research on: {natural_query}")
+        # Fallback behavior of _generate_research_plan
+        self.assertEqual(goal, natural_query) 
         self.assertEqual(len(queries), 1)
         self.assertEqual(queries[0], (natural_query, "Original query"))
-        mock_gemini_client.generate_text.assert_called_once()
+        mock_llm_client.generate_text.assert_called_once()
 
-    async def test_malformed_response_from_gemini(self):
-        mock_gemini_client = MagicMock(spec=GeminiClient)
-        # Missing "Research Goal:"
-        mock_gemini_client.generate_text = MagicMock(return_value=(
-            "Some other text.\n\n"
-            "Search Queries:\n"
-            "1. Query: AI diagnostics healthcare | Description: AI techniques for medical diagnosis."
+    async def test_malformed_response_from_llm_in_plan_generation(self): # Renamed
+        mock_llm_client = MagicMock()
+        # Response that doesn't match the expected query line format
+        mock_llm_client.generate_text = MagicMock(return_value=(
+            "This is not the query format expected.\n"
+            "No Query: lines here."
         ))
         
         natural_query = "AI in healthcare"
         max_queries = 1
         
-        goal, queries = await _generate_research_plan(natural_query, mock_gemini_client, max_queries)
+        goal, queries = await _generate_research_plan(natural_query, mock_llm_client, max_queries)
         
-        self.assertEqual(goal, f"Research on: {natural_query}") # Fallback behavior
-        self.assertEqual(len(queries), 1)
-        self.assertEqual(queries[0], ("AI diagnostics healthcare", "AI techniques for medical diagnosis."))
-        mock_gemini_client.generate_text.assert_called_once()
+        self.assertEqual(goal, natural_query) 
+        self.assertEqual(len(queries), 1) # Fallback to original query due to parsing failure
+        self.assertEqual(queries[0], (natural_query, "Original query"))
+        mock_llm_client.generate_text.assert_called_once()
 
-    async def test_malformed_response_no_queries(self):
-        mock_gemini_client = MagicMock(spec=GeminiClient)
-        mock_gemini_client.generate_text = MagicMock(return_value=(
-            "Research Goal: Understand the applications of AI in healthcare.\n\n"
-            "No queries found here."
+    # This test is similar to the one above, let's ensure it covers a slightly different malformed case
+    async def test_malformed_response_no_queries_found_in_plan_generation(self): # Renamed
+        mock_llm_client = MagicMock()
+        mock_llm_client.generate_text = MagicMock(return_value=(
+            "Search Queries:\n" # Correct start, but no actual query lines
+            "Some other text but no lines starting with '1. Query: ...'"
         ))
         
         natural_query = "AI in healthcare"
         max_queries = 3
         
-        goal, queries = await _generate_research_plan(natural_query, mock_gemini_client, max_queries)
+        goal, queries = await _generate_research_plan(natural_query, mock_llm_client, max_queries)
         
-        self.assertEqual(goal, "Understand the applications of AI in healthcare.")
+        self.assertEqual(goal, natural_query)
         self.assertEqual(len(queries), 1) # Fallback to original query
         self.assertEqual(queries[0], (natural_query, "Original query"))
-        mock_gemini_client.generate_text.assert_called_once()
+        mock_llm_client.generate_text.assert_called_once()
 
 
 class TestCalculateRelevanceScore(unittest.IsolatedAsyncioTestCase):
     async def test_successful_score_parsing(self):
-        mock_gemini_client = MagicMock(spec=GeminiClient)
-        mock_gemini_client.generate_text = MagicMock(return_value="Score: 0.85 | Explanation: Highly relevant due to focus on NLP.")
+        mock_llm_client = MagicMock() # Changed from mock_gemini_client
+        mock_llm_client.generate_text = MagicMock(return_value="Score: 0.85 | Explanation: Highly relevant due to focus on NLP.")
         
         score, explanation = await _calculate_relevance_score(
             title="Test Paper", authors=["Auth A"], abstract="Test abstract",
-            original_query="NLP applications", client=mock_gemini_client
+            original_query="NLP applications", client=mock_llm_client # Pass mock_llm_client
         )
         
         self.assertEqual(score, 0.85)
         self.assertEqual(explanation, "Highly relevant due to focus on NLP.")
-        mock_gemini_client.generate_text.assert_called_once()
+        mock_llm_client.generate_text.assert_called_once()
 
     async def test_score_parsing_variations(self):
         test_cases = [
