@@ -2,13 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 import logging
 import re
-from typing import List, Optional
+from typing import List, Optional, Union, Dict, Any
 from datetime import datetime
 from fastapi.responses import StreamingResponse
 import asyncio
 import json
 
-from backend.app.clients.gemini_client import GeminiClient, get_gemini_client
+from backend.app.dependencies import get_llm_client
+from backend.app.clients.gemini_client import GeminiClient # For type hinting
+from backend.app.clients.ollama_client import OllamaClient # For type hinting
 from backend.api.arxiv_client import ArxivAPIClient, get_arxiv_client
 
 router = APIRouter()
@@ -48,7 +50,7 @@ class SearchTreeResponse(BaseModel):
     total_unique_papers: int  # 重複除去後の論文数
 
 # === Helper Functions ===
-async def _generate_research_plan(natural_query: str, client: GeminiClient, max_queries: int) -> tuple[str, List[tuple[str, str]]]:
+async def _generate_research_plan(natural_query: str, client: Union[GeminiClient, OllamaClient], max_queries: int) -> tuple[str, List[tuple[str, str]]]:
     """
     自然言語クエリから研究目標と複数の検索クエリを生成
     Returns: (research_goal, [(query, description), ...])
@@ -84,8 +86,9 @@ async def _generate_research_plan(natural_query: str, client: GeminiClient, max_
     )
     
     try:
-        response = client.generate_text(prompt)
-        # logger.info(f"Raw LLM Response: {repr(response)}") # Commented out old raw logger
+        # Both clients now support a model parameter with a default, so just passing prompt is fine.
+        response = client.generate_text(prompt=prompt) 
+        # logger.info(f"Raw LLM Response: {repr(response)}")
 
         # Pre-process the response string for robustness
         processed_response = response.replace('\r\n', '\n').replace('\r', '\n')
@@ -113,11 +116,11 @@ async def _generate_research_plan(natural_query: str, client: GeminiClient, max_
         return natural_query, [(natural_query, "Original query")]
 
 async def _calculate_relevance_score(
-    title: str, 
-    authors: List[str], 
-    abstract: str, 
-    original_query: str, 
-    client: GeminiClient
+    title: str,
+    authors: List[str],
+    abstract: str,
+    original_query: str,
+    client: Union[GeminiClient, OllamaClient]
 ) -> tuple[float, str]:
     """
     論文と元の自然言語クエリの関連性スコアと説明を計算
@@ -133,7 +136,8 @@ async def _calculate_relevance_score(
     )
     
     try:
-        response = client.generate_text(prompt)
+        # Both clients now support a model parameter with a default.
+        response = client.generate_text(prompt=prompt)
         
         score = 0.0
         explanation = "Could not parse score or explanation."
@@ -190,7 +194,7 @@ def _deduplicate_papers(query_nodes: List[QueryNode]) -> int:
 @router.post("/research-tree", response_model=SearchTreeResponse, summary="Multi-query research with tree visualization")
 async def research_tree_search(
     request: ResearchTreeRequest,
-    gemini_client: GeminiClient = Depends(get_gemini_client),
+    llm_client: Union[GeminiClient, OllamaClient] = Depends(get_llm_client),
     arxiv_client: ArxivAPIClient = Depends(get_arxiv_client)
 ):
     """
@@ -206,8 +210,8 @@ async def research_tree_search(
         # Step 1: 研究計画生成（目標 + 複数クエリ）
         logger.info(f"Generating research plan for: {request.natural_language_query}")
         research_goal, query_plans = await _generate_research_plan(
-            request.natural_language_query, 
-            gemini_client,
+            request.natural_language_query,
+            llm_client,
             request.max_queries
         )
         logger.info(f"Research goal: {research_goal}")
@@ -238,7 +242,7 @@ async def research_tree_search(
                         authors=authors,
                         abstract=result.summary or "",
                         original_query=request.natural_language_query,
-                        client=gemini_client
+                        client=llm_client
                     )
                     
                     scored_paper = ScoredPaper(
@@ -295,7 +299,7 @@ async def research_tree_search(
 @router.post("/research-tree/stream", summary="Multi-query research with streaming response")
 async def research_tree_stream(
     request: ResearchTreeRequest,
-    gemini_client: GeminiClient = Depends(get_gemini_client),
+    llm_client: Union[GeminiClient, OllamaClient] = Depends(get_llm_client),
     arxiv_client: ArxivAPIClient = Depends(get_arxiv_client)
 ):
     """
@@ -305,7 +309,7 @@ async def research_tree_stream(
         # Step 1: クエリ生成
         research_goal, query_plans = await _generate_research_plan(
             request.natural_language_query,
-            gemini_client,
+            llm_client,
             request.max_queries
         )
         # クエリ生成結果をまず送信
@@ -327,7 +331,7 @@ async def research_tree_stream(
                         authors=authors,
                         abstract=result.summary or "",
                         original_query=request.natural_language_query,
-                        client=gemini_client
+                        client=llm_client
                     )
                     scored_paper = {
                         'title': result.title,
