@@ -51,14 +51,11 @@ async def _generate_research_plan(natural_query: str, client: GeminiClient, max_
     Returns: (research_goal, [(query, description), ...])
     """
     prompt = (
-        f"You are a research assistant. Analyze the following research question and create a comprehensive search strategy.\n\n"
-        f"Research Question: {natural_query}\n\n"
-        f"Please provide:\n"
-        f"1. Research Goal: A clear statement of what the user wants to understand\n"
-        f"2. Search Queries: Up to {max_queries} different search queries to comprehensively explore this topic. Each query should be followed by a brief description of what it focuses on.\n\n"
-        f"IMPORTANT: Always generate search queries in English, even if the research question is in another language. This is crucial for searching academic papers.\n\n"
-        f"Format your response EXACTLY as follows, including the labels 'Research Goal:', 'Search Queries:', and the numbering for queries:\n"
-        f"Research Goal: [Your clear research objective here]\n\n"
+        f"You are a research assistant. Your task is to break down the following research topic into a list of specific search queries for academic paper databases.\n\n"
+        f"Research Topic: {natural_query}\n\n"
+        f"Please generate up to {max_queries} distinct search queries. Each query should be designed to find relevant academic papers and should be accompanied by a brief description of its focus.\n\n"
+        f"IMPORTANT: Always generate search queries in English, even if the research topic is in another language. This is crucial for searching academic papers.\n\n"
+        f"Format your response EXACTLY as follows, including the numbering for queries:\n"
         f"Search Queries:\n"
         f"1. Query: [search terms 1 in English] | Description: [description for query 1]\n"
         f"2. Query: [search terms 2 in English] | Description: [description for query 2]\n"
@@ -67,16 +64,6 @@ async def _generate_research_plan(natural_query: str, client: GeminiClient, max_
     
     try:
         response = client.generate_text(prompt)
-        
-        # 研究目標を抽出
-        research_goal = ""
-        # Look for "Research Goal: " followed by text until a double newline or "Search Queries:"
-        goal_match = re.search(r"Research Goal:\s*(.+?)(?:\n\n|\nSearch Queries:)", response, re.DOTALL)
-        if goal_match:
-            research_goal = goal_match.group(1).strip()
-        else:
-            logger.warning(f"Could not parse Research Goal from response: {response}")
-            research_goal = f"Research on: {natural_query}" # Fallback
         
         # クエリを抽出
         queries = []
@@ -91,11 +78,11 @@ async def _generate_research_plan(natural_query: str, client: GeminiClient, max_
             logger.warning(f"Could not parse any Search Queries from response: {response}. Using original query as fallback.")
             queries = [(natural_query, "Original query")]
         
-        return research_goal, queries[:max_queries]
+        return natural_query, queries[:max_queries]
         
     except Exception as e:
         logger.error(f"Error generating research plan: {e}")
-        return f"Research on: {natural_query}", [(natural_query, "Original query")]
+        return natural_query, [(natural_query, "Original query")]
 
 async def _calculate_relevance_score(
     title: str, 
