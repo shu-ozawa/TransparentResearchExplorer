@@ -644,3 +644,12 @@
          margin-right: 10px;
     }
 }
+
+.initial-state-message {
+    text-align: center;
+    margin-top: 40px;
+    margin-bottom: 40px;
+    font-size: 1.1rem;
+    color: #8b7765; /* Using a color from the existing palette */
+    font-style: italic;
+}
