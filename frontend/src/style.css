@@ -99,9 +99,44 @@
             cursor: pointer;
         }
         
-        .network-node:hover {
+        .network-node.active { /* Style for nodes that are active (hovered or connected to hovered) */
             transform: scale(1.05);
-            z-index: 10;
+            /* Example: slightly more prominent shadow for active nodes, matches original hover */
+            box-shadow: 0 8px 25px rgba(139, 119, 101, 0.2); 
+            /* Ensure active nodes are also brought forward if not directly hovered, but less than direct hover */
+            z-index: 5; 
+        }
+
+        .network-node:hover { /* Style for the node *directly* under the mouse cursor */
+            transform: scale(1.1); /* Make direct hover more pronounced */
+            z-index: 10; /* Ensure the directly hovered node is on top of all others */
+            /* You can add a more distinct shadow for direct hover if needed */
+            /* box-shadow: 0 10px 30px rgba(0,0,0,0.25); */
+        }
+        
+        /* Specific node types might need adjustments if their base styles conflict */
+        .human-input.active {
+             box-shadow: 0 8px 25px rgba(139, 119, 101, 0.3); /* From original .human-input */
+        }
+        .human-input:hover {
+            box-shadow: 0 10px 30px rgba(139, 119, 101, 0.4); /* Example more pronounced hover */
+        }
+
+        .query-node.active {
+            box-shadow: 0 6px 20px rgba(200, 168, 130, 0.3); /* From original .query-node */
+        }
+        .query-node:hover {
+             box-shadow: 0 8px 25px rgba(200, 168, 130, 0.4); /* Example more pronounced hover */
+        }
+
+        .paper-node.active {
+            border-color: #c8a882; /* From original .paper-node:hover */
+            box-shadow: 0 8px 25px rgba(139, 119, 101, 0.2); /* From original .paper-node:hover */
+        }
+        .paper-node:hover {
+            border-color: #a67c52; /* Example more pronounced hover */
+            box-shadow: 0 10px 30px rgba(139, 119, 101, 0.25); /* Example more pronounced hover */
+            transform: scale(1.1) translateY(-5px); /* Keep or enhance translateY from original hover */
         }
         
         .human-input {
@@ -139,13 +174,14 @@
             text-align: center;
         }
         
-        .query-node.query1 {
+        /* Fixed positioning for query nodes - to be overridden by flex layout in JS */
+        /* .query-node.query1 {
             left: 15%;
-        }
+        } */
         
-        .query-node.query2 {
+        /* .query-node.query2 {
             right: 15%;
-        }
+        } */
         
         .query-title {
             font-size: 1.1rem;
@@ -175,26 +211,28 @@
         }
         
         .paper-node:hover {
-            border-color: #c8a882;
-            box-shadow: 0 8px 25px rgba(139, 119, 101, 0.2);
-            transform: scale(1.05) translateY(-5px);
+            /* Styles are already good, combined with .active logic */
+            border-color: #a67c52; /* Example more pronounced hover */
+            box-shadow: 0 10px 30px rgba(139, 119, 101, 0.25); /* Example more pronounced hover */
+            transform: scale(1.1) translateY(-5px); /* Keep or enhance translateY from original hover */
         }
         
-        .paper-node.paper1 {
+        /* Fixed positioning for paper nodes - to be overridden by flex layout in JS */
+        /* .paper-node.paper1 {
             left: 5%;
-        }
+        } */
         
-        .paper-node.paper2 {
+        /* .paper-node.paper2 {
             left: 30%;
-        }
+        } */
         
-        .paper-node.paper3 {
+        /* .paper-node.paper3 {
             right: 30%;
-        }
+        } */
         
-        .paper-node.paper4 {
+        /* .paper-node.paper4 {
             right: 5%;
-        }
+        } */
         
         .paper-title {
             font-size: 1rem;
@@ -487,3 +525,122 @@
             line-height: 1.7;
             color: #e8dcc6;
         }
+
+@media (max-width: 768px) {
+    .header h1 {
+        font-size: 2.2rem;
+    }
+    .header .subtitle {
+        font-size: 1.1rem;
+    }
+
+    .input-title {
+        font-size: 1.1rem;
+    }
+    .query-title {
+        font-size: 1rem;
+    }
+    .paper-title {
+        font-size: 0.9rem;
+    }
+    .stats-label, .legend-text {
+        font-size: 0.8rem;
+    }
+    .detail-title { /* Sidebar */
+        font-size: 1.2rem;
+    }
+    .metadata-label, .metadata-value { /* Sidebar */
+        font-size: 0.8rem;
+    }
+     .abstract-header { /* Sidebar */
+        font-size: 1.1rem;
+    }
+
+
+    .human-input, .query-node, .paper-node {
+        padding: 15px;
+        min-width: auto; /* Allow nodes to shrink more */
+    }
+    .human-input {
+        padding: 20px 25px; /* Keep human input slightly larger */
+        width: 90%;
+        max-width: 280px; /* Max width for human input */
+    }
+     .query-node {
+        width: calc(50% - 20px); /* Example: 2 query nodes per row */
+        min-width: 200px; /* Minimum width for query nodes */
+    }
+    .paper-node {
+        width: calc(50% - 20px); /* Example: 2 paper nodes per row on small screens */
+        min-width: 180px; /* Minimum width for paper nodes */
+        padding: 15px;
+    }
+
+
+    .stats-overview, .legend {
+        padding: 20px;
+        margin-bottom: 20px;
+        margin-top: 20px;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+    .stat-card {
+        padding: 15px;
+    }
+    .stat-number {
+        font-size: 1.8rem;
+    }
+
+    .legend-items {
+        grid-template-columns: repeat(1, 1fr);
+        gap: 10px;
+    }
+    
+    .network-graph {
+        min-height: 400px; /* Adjust height for smaller screens */
+        height: auto;
+        aspect-ratio: 1 / 1; /* Make it square or adjust as needed */
+    }
+    
+    .query-nodes-container {
+        flex-wrap: wrap; /* Allow query nodes to wrap */
+        justify-content: center; /* Center them when wrapped */
+        gap: 15px;
+    }
+
+    /* Sidebar responsiveness */
+    .sidebar {
+        width: 90%;
+        max-width: 400px; /* Max width for sidebar on smaller screens */
+    }
+    .sidebar-content {
+        padding: 30px 20px;
+    }
+    .metadata-grid { /* Sidebar metadata */
+        grid-template-columns: 1fr; /* Stack metadata items */
+    }
+}
+
+@media (max-width: 480px) {
+    .header h1 {
+        font-size: 1.8rem;
+    }
+    .header .subtitle {
+        font-size: 1rem;
+    }
+    .stats-grid {
+        grid-template-columns: repeat(1, 1fr); /* Stack stats cards */
+    }
+    .query-node, .paper-node {
+        width: calc(100% - 20px); /* Full width for nodes on very small screens */
+        margin-left: 10px;
+        margin-right: 10px;
+    }
+    .human-input {
+         width: calc(100% - 20px);
+         margin-left: 10px;
+         margin-right: 10px;
+    }
+}
