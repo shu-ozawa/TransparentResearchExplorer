@@ -127,8 +127,6 @@ async function initializeNetwork(naturalLanguageQuery = "深層学習を使っ�
 
             // Process papers for this query
             queryNode.papers.forEach((paper, paperIndex) => {
-                if (paperHtmlIdCounter > 4) return; // Max 4 papers in current HTML
-
                 const paperHtmlId = `paper${paperHtmlIdCounter}`;
                 if (!document.getElementById(paperHtmlId)) {
                     console.warn(`HTML element ${paperHtmlId} not found. Skipping paper:`, paper.title);

@@ -245,7 +245,7 @@ const QueryTreeVisualizer = ({ researchData, onPaperNodeClick }) => {
         </div>
 
         {/* Query Nodes */}
-        <div className="query-nodes-container" style={{ display: 'flex', justifyContent: 'space-around', marginTop: '50px', marginBottom: '50px' }}>
+        <div className="query-nodes-container" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '32px', marginTop: '50px', marginBottom: '50px' }}>
           {researchData.query_nodes.map((node, index) => {
             const queryNodeDomId = `query-node-${index}`;
             return (
@@ -253,6 +253,7 @@ const QueryTreeVisualizer = ({ researchData, onPaperNodeClick }) => {
                 key={index}
                 id={queryNodeDomId}
                 className={`network-node query-node query${index + 1} ${activeNodeIds.includes(queryNodeDomId) ? 'active' : ''}`}
+                style={{ position: 'static', minWidth: 280, maxWidth: 400, flex: '1 1 320px' }}
                 onMouseEnter={() => handleNodeMouseEnter(queryNodeDomId, 'query')}
                 onMouseLeave={handleNodeMouseLeave}
               >
@@ -264,7 +265,7 @@ const QueryTreeVisualizer = ({ researchData, onPaperNodeClick }) => {
         </div>
 
         {/* Paper Nodes */}
-        <div className="paper-nodes-container" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-around', gap: '20px' }}>
+        <div className="paper-nodes-container" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '20px' }}>
           {uniquePapers.map((paper, index) => {
             const paperNodeDomId = `paper-${paper.arxiv_id}`;
             return (
@@ -273,10 +274,10 @@ const QueryTreeVisualizer = ({ researchData, onPaperNodeClick }) => {
                 id={paperNodeDomId}
                 data-id={paper.arxiv_id}
                 className={`network-node paper-node paper${index + 1} ${activeNodeIds.includes(paperNodeDomId) ? 'active' : ''}`}
+                style={{ position: 'static', minWidth: 280, maxWidth: 400, flex: '1 1 320px' }}
                 onMouseEnter={() => handleNodeMouseEnter(paperNodeDomId, 'paper')}
                 onMouseLeave={handleNodeMouseLeave}
                 onClick={() => onPaperNodeClick && onPaperNodeClick(paper)}
-                style={{ cursor: onPaperNodeClick ? 'pointer' : 'default' }}
               >
                 <div className="paper-title">{paper.title}</div>
                 <div className="paper-authors">{paper.authors.join(', ')}</div>
