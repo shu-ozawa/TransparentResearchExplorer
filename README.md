@@ -2,7 +2,7 @@
 
 ## 1. プロジェクト概要
 
-Transparent Research Explorer (TRE) は、arXiv から論文を検索し、検索プロセスとその結果を可視化することで、研究者の先行研究調査を支援するシステムのプロトタイプです。検索クエリの枝分かれ・進化の透明化と、論文選択プロセスの可視化を中心に据え、「AIが何をどのように検索したか」を明示することを目的としています。
+Transparent Research Explorer (TRE) は、arXiv から論文を検索し、検索プロセスとその結果を可視化することで、研究者の先行研究調査を支援するシステムのプロトタイプです。検索クエリの枝分かれ・進化の透明化と、論文選択プロセスの可視化を中心に据え、「AIが何をどのように検索したか」を明示することを目的としています。バックエンドの主要機能の一つとして、自然言語による問い合わせを構造化された研究計画（リサーチツリー）に分解し、関連性の高い論文を検索・スコアリングする `research_tree` モジュールを有しています。
 
 ## 2. 技術スタック
 
@@ -21,13 +21,19 @@ Transparent Research Explorer (TRE) は、arXiv から論文を検索し、検�
 
 ## 2.1. Core Components
 
-### Gemini API Integration
--   **Location**: `backend/app/clients/gemini_client.py`
--   **Purpose**: This client is responsible for all interactions with the Google Gemini API. It handles tasks such as text generation, summarization, and potentially other generative AI functionalities required by the application.
--   **Configuration**:
-    -   Requires the `GEMINI_API_KEY` environment variable to be set with a valid API key for authentication.
-    -   The necessary library `google-generativeai` has been added to `backend/requirements.txt`.
--   **Error Handling**: The client includes error handling for API communication issues and other unexpected problems, typically returning empty results or raising exceptions as appropriate.
+### LLM Integration (Gemini, Ollama, etc.)
+-   **LLM Client Abstraction**: The system utilizes an abstraction layer (`backend/app/dependencies.py` via `get_llm_client`) to interact with Large Language Models. This allows for flexibility in choosing LLM providers.
+-   **Gemini API Client**:
+    -   **Location**: `backend/app/clients/gemini_client.py`
+    -   **Purpose**: This client handles interactions with the Google Gemini API. It is primarily used within the `research_tree` module for tasks such as:
+        -   Generating a structured research plan (research goal and sub-queries) from a user's natural language query.
+        -   Evaluating and scoring the relevance of arXiv papers against the user's initial query.
+    -   **Configuration**: Requires the `GEMINI_API_KEY` environment variable. The `google-generativeai` library is listed in `backend/requirements.txt`.
+-   **Ollama Client**:
+    -   **Location**: `backend/app/clients/ollama_client.py`
+    -   **Purpose**: Provides an interface to use local or self-hosted LLMs through Ollama. It serves the same purposes as the Gemini client (research plan generation, paper scoring) if selected as the LLM provider.
+    -   **Configuration**: Requires `OLLAMA_API_URL` and `OLLAMA_MODEL_NAME` environment variables. The `httpx` library (already a dependency) is used for communication.
+-   **Error Handling**: Both clients include error handling for API communication issues.
 
 ## 3. ディレクトリ構造
 
@@ -103,20 +109,17 @@ TransparentResearchExplorer/
 
 ### バックエンド API
 
--   **`POST /api/queries/generate`**: 初期キーワードから関連クエリリストを生成します。
-    -   リクエストボディ: `{ "keywords": "初期キーワード" }`
-    -   レスポンス: `{ "queries": ["関連クエリ1", "関連クエリ2", ...] }`
--   **`POST /api/papers/search`**: クエリリストから論文を検索し、基本情報を返します。
-    -   リクエストボディ: `{ "queries": ["クエリ1", "クエリ2"] }`
-    -   レスポンス: 論文情報のリスト
--   **`POST /api/papers/score`**: 論文情報とクエリから関連性スコアと理由を生成します。
-    -   リクエストボディ: `{ "paper_info": {...}, "query": "..." }`
-    -   レスポンス: `{ "score": 0.85, "reason": "..." }`
--   **`POST /api/papers/summary`**: 選択された論文群から集合的な要約を生成します。
-    -   リクエストボディ: `{ "paper_ids": ["id1", "id2"] }`
-    -   レスポンス: `{ "summary": "生成された要約文" }`
+-   **`POST /api/research-tree`**: 自然言語の問い合わせから研究計画（リサーチツリー）を生成し、関連論文を検索・評価します。
+    -   リクエストボディ例: `{ "natural_language_query": "大規模言語モデルがソフトウェア開発に与える影響", "max_results_per_query": 3, "max_queries": 3 }`
+    -   レスポンス: 研究目標、サブクエリ群、および各サブクエリで見つかったスコアリング済み論文リストを含む構造化された応答 (`SearchTreeResponse`)。論文のスコアリングは元の自然言語クエリとの関連性に基づきます。
+-   **`POST /api/research-tree/stream`**: 上記 `/api/research-tree` と同様の処理をストリーミング形式で行い、結果を段階的に返します。
+    -   リクエストボディ例: (上記と同様)
+    -   レスポンス: サーバーサイドイベント (SSE) ストリーム。
+-   **`POST /api/arxiv/search`**: 指定されたキーワードでarXivデータベースを直接検索します。
+    -   リクエストボディ例: `{ "keyword": "quantum computing", "max_results": 10 }`
+    -   レスポンス: arXiv論文情報のリスト (`ArxivSearchResponse`)。GETリクエスト (`GET /api/arxiv/search?keyword=...&max_results=...`) も利用可能です。
 
-詳細なAPI仕様は、開発の進行とともに更新・追記されます。
+詳細なAPI仕様は、バックエンドのOpenAPIドキュメント (`/docs` または `/redoc`) 及び `backend/DOCUMENTATION.md` を参照してください。
 
 ## 6. コーディング規約
 
